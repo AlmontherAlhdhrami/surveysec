@@ -52,6 +52,10 @@ form button:hover {
   color: green;
   margin-top: 10px;
 }
+table,td,th{
+  border: #0056b3 solid;
+  border-radius: 3%;
+}
 
 
 :root {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Supabase } from "../assets/createClient";
+import '../index.css';
 
 const Dashboard = () => {
   const [admin, setAdmin] = useState([]);
