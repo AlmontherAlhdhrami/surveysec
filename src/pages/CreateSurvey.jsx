@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from 'react'; // <-- This import is necessary for JSX to work
 
 const CreateSurvey = () => {
   const [questions, setQuestions] = useState([]);

@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import React from 'react'; // <-- This import is necessary for JSX to work
+
 
 const Services = () => {
   return (

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { FaWhatsapp, FaEnvelope } from "react-icons/fa";
+import React from 'react'; // <-- This import is necessary for JSX to work
+
 
 const Contact = () => {
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });

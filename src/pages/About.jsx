@@ -1,3 +1,5 @@
+import React from 'react'; // <-- This import is necessary for JSX to work
+
 const About = () => {
     return (
       <div className="p-10 max-w-4xl mx-auto mt-20 bg-white shadow-lg rounded-lg">

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../assets/createClient"; // ✅ Correct
+import React from 'react'; // <-- This import is necessary for JSX to work
+
 
 const MySurveys = () => {
   const [surveys, setSurveys] = useState([]);
