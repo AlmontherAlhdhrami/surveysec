@@ -44,9 +44,7 @@ const Navbar = () => {
           <NavLink to="/services" label="📊 Services" currentPath={location.pathname} onClick={() => setIsOpen(false)} />
           <NavLink to="/about" label="📘 About" currentPath={location.pathname} onClick={() => setIsOpen(false)} />
           <NavLink to="/contact" label="📞 Contact" currentPath={location.pathname} onClick={() => setIsOpen(false)} />
-          <Link to="/login" className="bg-white text-indigo-600 px-4 py-2 rounded-lg hover:bg-gray-200">
-            🔐 Login
-          </Link>
+         
         </div>
       </div>
     </nav>
