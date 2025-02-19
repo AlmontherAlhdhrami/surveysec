@@ -14,7 +14,7 @@ const Home = () => {
             <p className="mt-4 text-lg md:text-xl text-gray-200">
               Secure, user-friendly, and feature-packed survey creation platform.
             </p>
-            <Link to="/services">
+            <Link to="/Dashboard">
               <button className="mt-6 px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg shadow-lg hover:bg-gray-200 transition transform hover:scale-105">
                 Get Started 🚀
               </button>
