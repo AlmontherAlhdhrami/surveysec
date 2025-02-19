@@ -91,25 +91,25 @@ const Navbar = () => {
         <div className="flex flex-col py-4 space-y-3 text-center">
           <NavLink
             to="/"
-            label="🏠 Home"
+            label="Home"
             currentPath={location.pathname}
             onClick={() => setIsOpen(false)}
           />
           <NavLink
             to="/services"
-            label="📊 Services"
+            label="Services"
             currentPath={location.pathname}
             onClick={() => setIsOpen(false)}
           />
           <NavLink
             to="/about"
-            label="📘 About"
+            label="About"
             currentPath={location.pathname}
             onClick={() => setIsOpen(false)}
           />
           <NavLink
             to="/contact"
-            label="📞 Contact"
+            label="Contact"
             currentPath={location.pathname}
             onClick={() => setIsOpen(false)}
           />
