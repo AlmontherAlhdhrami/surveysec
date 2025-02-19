@@ -18,10 +18,16 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const router = createBrowserRouter([
   {
+    path:'/',
+    element:<Home/>
+  },
+  {
+    
+
     path: '/',
     element: <App />,
     children: [
-      { path: '/', element: <Home /> },
+      
       { path: '/services', element: <Services /> },
       { path: '/create-survey', element: <CreateSurvey /> },
       { path: '/my-surveys', element: <MySurveys /> },

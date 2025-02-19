@@ -2,8 +2,7 @@ import { UserButton } from "@clerk/clerk-react";
 import React from 'react'; // <-- This import is necessary for JSX to work
 
 import { Link } from "react-router-dom";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+
 
 const Home = () => {
   return (
