@@ -13,7 +13,6 @@ import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import SurveyBuilder from './pages/SurveyBuilder';
 import SurveyPreview from './pages/SurveyPreview';
-import UserDashboard from './pages/UserDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
 
@@ -28,7 +27,6 @@ const router = createBrowserRouter([
       { path: 'dashboard', element: <Dashboard /> },
       { path: 'builder', element: <SurveyBuilder /> },
       { path: 'preview', element: <SurveyPreview /> },
-      { path: 'user-dashboard', element: <UserDashboard /> },
       { path: 'about', element: <About /> },
       { path: 'contact', element: <Contact /> },
     ],
