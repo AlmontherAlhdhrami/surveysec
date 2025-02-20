@@ -7,9 +7,10 @@ import './index.css';
 import App from './App.jsx';
 import SignIN from './auth/sign-in';
 import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
+import Services from './pages/Services';
 import CreateSurvey from './pages/CreateSurvey';
-
+import MySurveys from './pages/MySurveys';
+import UserDashboard from './pages/UserDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
 
@@ -21,9 +22,10 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { path: '/', element: <Home /> },
-      { path: '/Dashboard', element: <Dashboard/> },
+      { path: '/services', element: <Services /> },
       { path: '/create-survey', element: <CreateSurvey /> },
-  
+      { path: '/my-surveys', element: <MySurveys /> },
+      { path: '/user-dashboard', element: <UserDashboard /> },
       { path: '/about', element: <About /> },
       { path: '/contact', element: <Contact /> },
     ],

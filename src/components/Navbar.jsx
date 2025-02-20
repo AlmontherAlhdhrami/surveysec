@@ -21,7 +21,7 @@ const Navbar = () => {
         {/* Desktop Nav (hidden on small screens) */}
         <div className="hidden md:flex justify-center flex-grow space-x-8 ml-8">
           <NavLink to="/" label="Home" currentPath={location.pathname} />
-          <NavLink to="/Dashboard" label="Dashboard" currentPath={location.pathname} />
+          <NavLink to="/services" label="Dashboard" currentPath={location.pathname} />
           <NavLink to="/about" label="About" currentPath={location.pathname} />
           <NavLink to="/contact" label="Contact" currentPath={location.pathname} />
         </div>
@@ -30,7 +30,7 @@ const Navbar = () => {
         <div className="hidden md:flex gap-4 items-center ml-auto">
           {isSignedIn ? (
             <>
-              <Link to="/Dashboard">
+              <Link to="/services">
                 <button className="bg-transparent text-white border-2 border-white py-2 px-6 rounded-full hover:bg-white hover:text-indigo-600 transition-all duration-300 ease-in-out transform hover:scale-105">
                   Dashboard
                 </button>
@@ -96,8 +96,8 @@ const Navbar = () => {
             onClick={() => setIsOpen(false)}
           />
           <NavLink
-            to="/Dashboard"
-            label="Dashboard"
+            to="/services"
+            label="Services"
             currentPath={location.pathname}
             onClick={() => setIsOpen(false)}
           />
@@ -118,7 +118,7 @@ const Navbar = () => {
           <div className="flex flex-col items-center gap-3 mt-4">
             {isSignedIn ? (
               <>
-                <Link to="/Dashboard" onClick={() => setIsOpen(false)}>
+                <Link to="/services" onClick={() => setIsOpen(false)}>
                   <button className="bg-transparent text-white border-2 border-white py-2 px-6 rounded-full hover:bg-white hover:text-indigo-600 transition-all duration-300 ease-in-out transform hover:scale-105">
                     Dashboard
                   </button>
