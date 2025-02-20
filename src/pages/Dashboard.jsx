@@ -1,32 +1,20 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../assets/createClient";
-import { useNavigate } from "react-router-dom";
+// src/pages/Dashboard.jsx
+import React from "react";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data?.user) {
-        navigate("/login"); // Redirect to login if not authenticated
-      } else {
-        setUser(data.user);
-      }
-    };
-    checkUser();
-  }, [navigate]);
-
   return (
-    <div className="p-10 max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-indigo-600 text-center">📂 User Dashboard</h2>
-      {user && (
-        <div className="mt-6 p-4 border rounded-lg bg-gray-100">
-          <p><strong>Email:</strong> {user.email}</p>
-          <p><strong>User ID:</strong> {user.id}</p>
-        </div>
-      )}
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white shadow p-8 rounded">
+        <h1 className="text-2xl font-bold text-indigo-600 mb-4">Survey Dashboard</h1>
+        <p className="text-gray-600 mb-6">Welcome! Click below to build a new survey or edit existing ones.</p>
+        <Link
+          to="/builder"
+          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          Create / Edit Survey
+        </Link>
+      </div>
     </div>
   );
 };
