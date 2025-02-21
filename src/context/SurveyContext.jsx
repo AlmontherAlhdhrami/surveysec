@@ -4,6 +4,9 @@ import React, { createContext, useContext, useState } from "react";
 const SurveyContext = createContext(null);
 
 export const SurveyProvider = ({ children }) => {
+  // 1) تعريف الحقلين:
+  const [surveyDBId, setSurveyDBId] = useState(null);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState([]);
@@ -13,11 +16,13 @@ export const SurveyProvider = ({ children }) => {
   const [buttonColor, setButtonColor] = useState("#4F46E5"); // Buttons
   const [answerColor, setAnswerColor] = useState("#4F46E5"); // Radio/checkbox accent color
 
+  // 2) إضافة setSurveyDBId إلى كائن value
   const value = {
+    surveyDBId,
+    setSurveyDBId,   // <-- لابد من تصدير الدالة
     title, setTitle,
     description, setDescription,
     questions, setQuestions,
-
     frameColor, setFrameColor,
     buttonColor, setButtonColor,
     answerColor, setAnswerColor
@@ -30,6 +35,4 @@ export const SurveyProvider = ({ children }) => {
   );
 };
 
-export const useSurveyContext = () => {
-  return useContext(SurveyContext);
-};
+export const useSurveyContext = () => useContext(SurveyContext);

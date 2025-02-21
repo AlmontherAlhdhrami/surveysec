@@ -154,10 +154,13 @@ const SurveyBuilder = () => {
     setQuestions(updated);
   };
 
-  // 3) "Save Survey" -> Upsert to DB
+  // ===============================================================
+  // 3) "Save Survey" -> Upsert to DB  (Only this part was adjusted)
+  // ===============================================================
   const handleSaveSurvey = async () => {
     try {
       let finalSurveyId = surveyDBId;
+
       // If we don't have an existing ID, let's create a new row
       if (!finalSurveyId) {
         const { data: newSurvey, error: surveyError } = await supabase
@@ -170,6 +173,7 @@ const SurveyBuilder = () => {
             // button_color: buttonColor,
             // answer_color: answerColor,
           })
+          .select() // مهم حتى نسترجع بيانات الصف الجديد
           .single();
 
         if (surveyError) {
@@ -177,6 +181,7 @@ const SurveyBuilder = () => {
           alert("Failed to create a new survey in DB.");
           return;
         }
+
         // Store new ID
         finalSurveyId = newSurvey.id;
         setSurveyDBId(newSurvey.id);
@@ -213,6 +218,7 @@ const SurveyBuilder = () => {
               is_required: q.required,
               options: q.options, // JSON array
             });
+
           if (insertError) {
             console.error("Insert question error:", insertError);
           }
@@ -227,15 +233,12 @@ const SurveyBuilder = () => {
               options: q.options,
             })
             .eq("id", q.id);
+
           if (updateQError) {
             console.error("Update question error:", updateQError);
           }
         }
       }
-
-      // (Optional) Remove questions that were deleted from DB
-      // We need to track which question IDs were previously in DB but now missing
-      // This is more advanced. You’d compare what's in DB vs what's in context.
 
       alert("Survey saved successfully!");
     } catch (err) {

@@ -3,15 +3,11 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useSurveyContext } from "../context/SurveyContext";
 import StarRating from "../components/StarRating";
-
-// 1) Import your Supabase client
-import { supabase } from "../assets/createClient"; // <-- Adjust path as needed
+import { supabase } from "../assets/createClient"; // Import your Supabase client
 
 const SurveyPreview = () => {
   const {
-    // We assume you're storing a real "surveyId" in context
-    // so we know which survey ID in the database to reference.
-    surveyId,  
+    surveyDBId, // Using surveyDBId from context
     title,
     description,
     questions,
@@ -48,79 +44,72 @@ const SurveyPreview = () => {
     setAnswers((prev) => {
       const current = prev[qIndex] || [];
       if (current.includes(opt)) {
-        // Remove if already selected
         return { ...prev, [qIndex]: current.filter((o) => o !== opt) };
       } else {
-        // Add if not selected
         return { ...prev, [qIndex]: [...current, opt] };
       }
     });
   };
 
-  // 2) Handle the form submission -> save to DB
+  // Handle form submission – save answers to DB
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate we have a real surveyId (if needed)
-    if (!surveyId) {
-      alert("No surveyId found. Cannot save to DB.");
+    if (!surveyDBId) {
+      alert("No surveyDBId found. Cannot save to DB.");
       return;
     }
 
     try {
-      // 2.1) Insert a new row in "responses" to represent this submission
+      // 1) Insert a new row in "responses" to represent this submission.
       const { data: responseData, error: responseError } = await supabase
         .from("responses")
-        .insert({ survey_id: surveyId }) // We rely on "surveyId" from context
+        .insert({ survey_id: surveyDBId })
+        .select()  // Request the inserted data.
         .single();
 
       if (responseError) {
-        console.error(responseError);
+        console.error("Error creating new response row:", responseError);
         alert("Error creating new response row");
         return;
       }
 
-      // 2.2) Insert each answer into "answers"
-      // We assume each question in "questions" has a question "id" from DB
+      if (!responseData) {
+        alert("No data returned from DB when inserting response!");
+        return;
+      }
+
       const responseId = responseData.id;
 
-      // Build an array of { response_id, question_id, answer_value }
-      const answerRows = questions.map((q, i) => {
-        // The user’s answer is in "answers[i]"
-        // For a safe approach, let's store it in JSON (like: {"value": ...}).
-        // Or we can store it directly if it's already an array/string.
-        // For demonstration, let's wrap in an object "{"userAnswer": ...}"
-        const userAnswer = answers[i];
-        return {
-          response_id: responseId,
-          question_id: q.id, // we expect q.id is from DB
-          // cast to JSON if needed
-          answer_value: userAnswer
-            ? { userAnswer } // will be inserted as a JSON object
-            : {}
-        };
-      });
+      // 2) Build an array of answer rows.
+      //    We filter out any null/undefined questions just in case.
+      const answerRows = questions
+        .filter((q) => q && q.id)  // Ensure q exists and has an id.
+        .map((q, i) => {
+          const userAnswer = answers[i];
+          return {
+            response_id: responseId,
+            question_id: q.id,
+            answer_value: userAnswer ? { userAnswer } : {},
+          };
+        });
 
-      // Insert the array of answers
+      // 3) Insert the answer rows into "answers"
       const { error: answersError } = await supabase
         .from("answers")
         .insert(answerRows);
 
       if (answersError) {
-        console.error(answersError);
+        console.error("Error inserting answers:", answersError);
         alert("Error inserting answers");
         return;
       }
 
-      // If we reach here, it means everything was saved successfully
       alert("Survey responses saved successfully!");
       console.log("User answers:", answers);
-
-      // (Optional) Provide a link or do something to share the survey
-      // e.g., redirect to a "thanks" page or show a link
     } catch (error) {
       console.error("Unexpected error:", error);
-      alert("An unexpected error occurred while saving your answers");
+      alert("An unexpected error occurred while saving your responses");
     }
   };
 
@@ -154,18 +143,14 @@ const SurveyPreview = () => {
                   {q.required && <span className="text-red-500 ml-1">*</span>}
                 </label>
 
-                {/* Short Answer */}
                 {q.type === "shortAnswer" && (
                   <input
                     type="text"
                     className="w-full p-2 border rounded focus:ring focus:ring-indigo-200"
-                    onChange={(e) =>
-                      handleShortAnswerChange(qIndex, e.target.value)
-                    }
+                    onChange={(e) => handleShortAnswerChange(qIndex, e.target.value)}
                   />
                 )}
 
-                {/* Paragraph */}
                 {q.type === "paragraph" && (
                   <textarea
                     rows={3}
@@ -174,22 +159,16 @@ const SurveyPreview = () => {
                   />
                 )}
 
-                {/* Multiple Choice (Radio) */}
                 {q.type === "multipleChoice" && (
                   <div className="space-y-2">
                     {q.options.map((opt, oIndex) => (
-                      <label
-                        key={oIndex}
-                        className="flex items-center text-gray-700"
-                      >
+                      <label key={oIndex} className="flex items-center text-gray-700">
                         <input
                           type="radio"
                           name={`radio-${qIndex}`}
                           className="mr-2"
                           style={{ accentColor: answerColor }}
-                          onChange={() =>
-                            handleMultipleChoiceChange(qIndex, opt)
-                          }
+                          onChange={() => handleMultipleChoiceChange(qIndex, opt)}
                         />
                         <span>{opt || "Option"}</span>
                       </label>
@@ -197,14 +176,10 @@ const SurveyPreview = () => {
                   </div>
                 )}
 
-                {/* Checkboxes */}
                 {q.type === "checkboxes" && (
                   <div className="space-y-2">
                     {q.options.map((opt, oIndex) => (
-                      <label
-                        key={oIndex}
-                        className="flex items-center text-gray-700"
-                      >
+                      <label key={oIndex} className="flex items-center text-gray-700">
                         <input
                           type="checkbox"
                           className="mr-2"
@@ -217,13 +192,10 @@ const SurveyPreview = () => {
                   </div>
                 )}
 
-                {/* Dropdown */}
                 {q.type === "dropdown" && (
                   <select
                     className="p-2 border rounded focus:ring focus:ring-indigo-200"
-                    onChange={(e) =>
-                      handleDropdownChange(qIndex, e.target.value)
-                    }
+                    onChange={(e) => handleDropdownChange(qIndex, e.target.value)}
                   >
                     <option value="">-- Select an option --</option>
                     {q.options.map((opt, oIndex) => (
@@ -234,7 +206,6 @@ const SurveyPreview = () => {
                   </select>
                 )}
 
-                {/* Star Rating */}
                 {q.type === "rating" && (
                   <div>
                     <p className="text-sm text-gray-600">Click a star to rate:</p>

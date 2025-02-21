@@ -135,7 +135,7 @@ const Dashboard = () => {
           {/* (A) Plus Card */}
           <div
             onClick={handlePlusClick}
-            className="h-64 rounded shadow-sm bg-blue-200 hover:shadow-md transition flex items-center justify-center cursor-pointer"
+            className="h-64 rounded shadow-sm bg-purple-300 hover:shadow-md transition flex items-center justify-center cursor-pointer"
           >
             <span className="text-4xl text-blue-700 font-bold">+</span>
           </div>
@@ -175,7 +175,7 @@ const Dashboard = () => {
           {surveys.map((survey) => (
             <div
               key={survey.id}
-              className="relative h-64 rounded shadow-sm bg-purple-300 hover:shadow-md transition"
+              className="relative h-64 rounded shadow-sm bg-purple-600 hover:shadow-md transition"
             >
               {/* Centered text (example) */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
