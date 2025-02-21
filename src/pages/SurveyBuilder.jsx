@@ -1,10 +1,17 @@
 // src/pages/SurveyBuilder.jsx
-import React from "react";
+import React, { useEffect } from "react";
 import { useSurveyContext } from "../context/SurveyContext";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { supabase } from "../assets/createClient"; // <-- Import your configured Supabase client
 
 const SurveyBuilder = () => {
+  // Optionally, you might have a route param like ":surveyId"
+  // We'll see if there's an existing ID to load or update.
+  const { surveyId } = useParams();
+
   const {
+    surveyDBId,        // A state in context to store the actual DB "surveys.id"
+    setSurveyDBId,     // e.g., setSurveyDBId once we create or fetch from DB
     title,
     setTitle,
     description,
@@ -19,16 +26,75 @@ const SurveyBuilder = () => {
     setAnswerColor,
   } = useSurveyContext();
 
+  // Example: If we have a "surveyId" param, let's load it from DB on mount
+  // or you can do it differently if you'd prefer storing in context already.
+  useEffect(() => {
+    if (surveyId) {
+      fetchSurveyFromDB(surveyId);
+    }
+  }, [surveyId]);
+
+  // Fetch existing survey + questions from DB and update context
+  const fetchSurveyFromDB = async (id) => {
+    try {
+      // 1) Fetch the survey
+      let { data: survey, error: surveyError } = await supabase
+        .from("surveys")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (surveyError) {
+        console.error("Error fetching survey:", surveyError);
+        return;
+      }
+
+      // 2) Fetch questions
+      let { data: qData, error: qError } = await supabase
+        .from("questions")
+        .select("*")
+        .eq("survey_id", id);
+
+      if (qError) {
+        console.error("Error fetching questions:", qError);
+        return;
+      }
+
+      // 3) Update context states
+      setSurveyDBId(survey.id);         // store the DB id in context
+      setTitle(survey.title);
+      setDescription(survey.description);
+
+      // If you stored frameColor, buttonColor, etc. in DB, load them here
+      // e.g., if you had columns "frame_color", "button_color", ...
+      // setFrameColor(survey.frame_color || '#ffffff');
+      // setButtonColor(survey.button_color || '#4F46E5');
+      // setAnswerColor(survey.answer_color || '#4F46E5');
+
+      // Map the question records to the shape your builder expects
+      const mappedQuestions = qData.map((dbQ) => ({
+        id: dbQ.id, // keep the DB ID for updates
+        text: dbQ.question_text,
+        type: dbQ.question_type,
+        required: dbQ.is_required,
+        options: dbQ.options || [],
+      }));
+      setQuestions(mappedQuestions);
+    } catch (err) {
+      console.error("Unexpected error loading survey:", err);
+    }
+  };
+
   // Add new question
   const addQuestion = () => {
     setQuestions([
       ...questions,
       {
+        // no "id" because it's not saved in DB yet
         text: "",
         type: "shortAnswer",
         options: [],
         required: false,
-        ratingValue: 0,
       },
     ]);
   };
@@ -44,11 +110,13 @@ const SurveyBuilder = () => {
   const updateQuestionType = (index, value) => {
     const updated = [...questions];
     updated[index].type = value;
+
     if (["multipleChoice", "checkboxes", "dropdown"].includes(value)) {
       updated[index].options = [""];
     } else {
       updated[index].options = [];
     }
+
     setQuestions(updated);
   };
 
@@ -84,6 +152,96 @@ const SurveyBuilder = () => {
   const removeQuestion = (qIndex) => {
     const updated = questions.filter((_, idx) => idx !== qIndex);
     setQuestions(updated);
+  };
+
+  // 3) "Save Survey" -> Upsert to DB
+  const handleSaveSurvey = async () => {
+    try {
+      let finalSurveyId = surveyDBId;
+      // If we don't have an existing ID, let's create a new row
+      if (!finalSurveyId) {
+        const { data: newSurvey, error: surveyError } = await supabase
+          .from("surveys")
+          .insert({
+            title,
+            description,
+            // Optionally store colors in DB if you want
+            // frame_color: frameColor,
+            // button_color: buttonColor,
+            // answer_color: answerColor,
+          })
+          .single();
+
+        if (surveyError) {
+          console.error("Error creating new survey:", surveyError);
+          alert("Failed to create a new survey in DB.");
+          return;
+        }
+        // Store new ID
+        finalSurveyId = newSurvey.id;
+        setSurveyDBId(newSurvey.id);
+      } else {
+        // If we do have an ID, update existing
+        const { error: updateError } = await supabase
+          .from("surveys")
+          .update({
+            title,
+            description,
+            // frame_color: frameColor,
+            // button_color: buttonColor,
+            // answer_color: answerColor,
+          })
+          .eq("id", finalSurveyId);
+
+        if (updateError) {
+          console.error("Error updating survey:", updateError);
+          alert("Failed to update existing survey.");
+          return;
+        }
+      }
+
+      // 3.1) Upsert each question
+      for (const q of questions) {
+        if (!q.id) {
+          // Insert new question
+          const { error: insertError } = await supabase
+            .from("questions")
+            .insert({
+              survey_id: finalSurveyId,
+              question_text: q.text,
+              question_type: q.type,
+              is_required: q.required,
+              options: q.options, // JSON array
+            });
+          if (insertError) {
+            console.error("Insert question error:", insertError);
+          }
+        } else {
+          // Update existing question
+          const { error: updateQError } = await supabase
+            .from("questions")
+            .update({
+              question_text: q.text,
+              question_type: q.type,
+              is_required: q.required,
+              options: q.options,
+            })
+            .eq("id", q.id);
+          if (updateQError) {
+            console.error("Update question error:", updateQError);
+          }
+        }
+      }
+
+      // (Optional) Remove questions that were deleted from DB
+      // We need to track which question IDs were previously in DB but now missing
+      // This is more advanced. You’d compare what's in DB vs what's in context.
+
+      alert("Survey saved successfully!");
+    } catch (err) {
+      console.error("Unexpected error saving survey:", err);
+      alert("An unexpected error occurred while saving your survey.");
+    }
   };
 
   return (
@@ -234,7 +392,9 @@ const SurveyBuilder = () => {
                           placeholder="Enter option..."
                           className="w-full p-2 border rounded focus:ring focus:ring-indigo-200"
                           value={option}
-                          onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                          onChange={(e) =>
+                            updateOption(qIndex, oIndex, e.target.value)
+                          }
                         />
                         {/* Remove Option Button */}
                         <button
@@ -265,7 +425,16 @@ const SurveyBuilder = () => {
               ➕ Add Question
             </button>
 
-            {/* Link to full interactive preview page */}
+            {/* Save Survey */}
+            <button
+              onClick={handleSaveSurvey}
+              style={{ backgroundColor: buttonColor }}
+              className="mt-3 w-full px-4 py-2 text-white rounded hover:opacity-90 transition-opacity"
+            >
+              Save Survey
+            </button>
+
+            {/* Go to Full Interactive Preview */}
             <Link
               to="/preview"
               style={{ backgroundColor: buttonColor }}
@@ -280,7 +449,9 @@ const SurveyBuilder = () => {
             className="rounded p-6 shadow"
             style={{ backgroundColor: frameColor }}
           >
-            <h2 className="text-xl font-bold text-gray-700 mb-4">Design Preview</h2>
+            <h2 className="text-xl font-bold text-gray-700 mb-4">
+              Design Preview
+            </h2>
             <h3 className="text-2xl font-semibold text-gray-800">
               {title || "Survey Title"}
             </h3>
@@ -324,7 +495,6 @@ const SurveyBuilder = () => {
                             type="radio"
                             className="mr-2"
                             disabled
-                            // Apply accent color to radio
                             style={{ accentColor: answerColor }}
                           />
                           <span>{opt || "Option"}</span>
@@ -343,7 +513,6 @@ const SurveyBuilder = () => {
                             type="checkbox"
                             className="mr-2"
                             disabled
-                            // Apply accent color to checkbox
                             style={{ accentColor: answerColor }}
                           />
                           <span>{opt || "Option"}</span>
@@ -367,9 +536,6 @@ const SurveyBuilder = () => {
                 </div>
               ))}
             </div>
-
-            {/* Example button preview (just to show your buttonColor) */}
-           
           </div>
         </div>
       </div>

@@ -26,7 +26,9 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: 'dashboard', element: <Dashboard /> },
       { path: 'builder', element: <SurveyBuilder /> },
+      { path: 'builder/:surveyId', element: <SurveyBuilder /> },
       { path: 'preview', element: <SurveyPreview /> },
+     
       { path: 'about', element: <About /> },
       { path: 'contact', element: <Contact /> },
     ],

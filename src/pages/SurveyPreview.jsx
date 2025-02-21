@@ -4,97 +4,128 @@ import { Link } from "react-router-dom";
 import { useSurveyContext } from "../context/SurveyContext";
 import StarRating from "../components/StarRating";
 
+// 1) Import your Supabase client
+import { supabase } from "../assets/createClient"; // <-- Adjust path as needed
+
 const SurveyPreview = () => {
-  // Destructure needed state from the SurveyContext
   const {
+    // We assume you're storing a real "surveyId" in context
+    // so we know which survey ID in the database to reference.
+    surveyId,  
     title,
     description,
     questions,
-    frameColor,    // Applied to container background
-    buttonColor,   // Applied to buttons
-    answerColor    // Applied to radio/checkbox accents
+    frameColor,
+    buttonColor,
+    answerColor
   } = useSurveyContext();
 
-  // We'll store the user's "answers" locally in this component
-  // so we can demonstrate interactive controls without overwriting the builder's data.
-  // The keys in "answers" will match the question index (qIndex).
+  // We'll store the user's "answers" locally.
   const [answers, setAnswers] = useState({});
 
-  // -- Handlers for each question type --
-
-  // Short Answer
+  // Handlers for each question type
   const handleShortAnswerChange = (qIndex, value) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [qIndex]: value
-    }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: value }));
   };
 
-  // Paragraph
   const handleParagraphChange = (qIndex, value) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [qIndex]: value
-    }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: value }));
   };
 
-  // Dropdown
   const handleDropdownChange = (qIndex, value) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [qIndex]: [value] // store selected item in an array of length 1
-    }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: [value] }));
   };
 
-  // Star Rating
   const handleStarChange = (qIndex, starValue) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [qIndex]: starValue // store rating as a number
-    }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: starValue }));
   };
 
-  // Multiple Choice (Radio)
   const handleMultipleChoiceChange = (qIndex, opt) => {
-    // For radio, we only store one selected option in an array of length 1
-    setAnswers((prev) => ({
-      ...prev,
-      [qIndex]: [opt]
-    }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: [opt] }));
   };
 
-  // Checkboxes
   const handleCheckboxChange = (qIndex, opt) => {
-    // For checkboxes, we store an array of selected options
     setAnswers((prev) => {
       const current = prev[qIndex] || [];
       if (current.includes(opt)) {
         // Remove if already selected
-        return {
-          ...prev,
-          [qIndex]: current.filter((o) => o !== opt)
-        };
+        return { ...prev, [qIndex]: current.filter((o) => o !== opt) };
       } else {
         // Add if not selected
-        return {
-          ...prev,
-          [qIndex]: [...current, opt]
-        };
+        return { ...prev, [qIndex]: [...current, opt] };
       }
     });
   };
 
-  // On form submit, we just log the answers to console
-  // In a real app, you'd likely validate required fields and store them in a backend or DB.
-  const handleSubmit = (e) => {
+  // 2) Handle the form submission -> save to DB
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("User answers:", answers);
-    alert("Form submitted! Check the console for answers.");
+
+    // Validate we have a real surveyId (if needed)
+    if (!surveyId) {
+      alert("No surveyId found. Cannot save to DB.");
+      return;
+    }
+
+    try {
+      // 2.1) Insert a new row in "responses" to represent this submission
+      const { data: responseData, error: responseError } = await supabase
+        .from("responses")
+        .insert({ survey_id: surveyId }) // We rely on "surveyId" from context
+        .single();
+
+      if (responseError) {
+        console.error(responseError);
+        alert("Error creating new response row");
+        return;
+      }
+
+      // 2.2) Insert each answer into "answers"
+      // We assume each question in "questions" has a question "id" from DB
+      const responseId = responseData.id;
+
+      // Build an array of { response_id, question_id, answer_value }
+      const answerRows = questions.map((q, i) => {
+        // The user’s answer is in "answers[i]"
+        // For a safe approach, let's store it in JSON (like: {"value": ...}).
+        // Or we can store it directly if it's already an array/string.
+        // For demonstration, let's wrap in an object "{"userAnswer": ...}"
+        const userAnswer = answers[i];
+        return {
+          response_id: responseId,
+          question_id: q.id, // we expect q.id is from DB
+          // cast to JSON if needed
+          answer_value: userAnswer
+            ? { userAnswer } // will be inserted as a JSON object
+            : {}
+        };
+      });
+
+      // Insert the array of answers
+      const { error: answersError } = await supabase
+        .from("answers")
+        .insert(answerRows);
+
+      if (answersError) {
+        console.error(answersError);
+        alert("Error inserting answers");
+        return;
+      }
+
+      // If we reach here, it means everything was saved successfully
+      alert("Survey responses saved successfully!");
+      console.log("User answers:", answers);
+
+      // (Optional) Provide a link or do something to share the survey
+      // e.g., redirect to a "thanks" page or show a link
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      alert("An unexpected error occurred while saving your answers");
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="bg-white shadow py-6 mb-8">
         <h1 className="text-3xl font-bold text-indigo-700 text-center">
           Survey Preview
@@ -102,12 +133,10 @@ const SurveyPreview = () => {
       </header>
 
       <div className="container mx-auto px-4 pb-10">
-        {/* Outer container uses frameColor */}
         <div
           className="max-w-4xl mx-auto rounded shadow"
           style={{ backgroundColor: frameColor }}
         >
-          {/* Title/Description */}
           <div className="p-6">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               {title || "Preview Title"}
@@ -117,7 +146,6 @@ const SurveyPreview = () => {
             </p>
           </div>
 
-          {/* Survey Form */}
           <form onSubmit={handleSubmit} className="bg-white p-6 rounded-b">
             {questions.map((q, qIndex) => (
               <div key={qIndex} className="mb-6">
@@ -142,9 +170,7 @@ const SurveyPreview = () => {
                   <textarea
                     rows={3}
                     className="w-full p-2 border rounded focus:ring focus:ring-indigo-200"
-                    onChange={(e) =>
-                      handleParagraphChange(qIndex, e.target.value)
-                    }
+                    onChange={(e) => handleParagraphChange(qIndex, e.target.value)}
                   />
                 )}
 
@@ -161,7 +187,9 @@ const SurveyPreview = () => {
                           name={`radio-${qIndex}`}
                           className="mr-2"
                           style={{ accentColor: answerColor }}
-                          onChange={() => handleMultipleChoiceChange(qIndex, opt)}
+                          onChange={() =>
+                            handleMultipleChoiceChange(qIndex, opt)
+                          }
                         />
                         <span>{opt || "Option"}</span>
                       </label>
@@ -212,7 +240,6 @@ const SurveyPreview = () => {
                     <p className="text-sm text-gray-600">Click a star to rate:</p>
                     <div className="mt-2">
                       <StarRating
-                        // If user hasn't selected a rating yet, default to 0
                         value={answers[qIndex] || 0}
                         onChange={(val) => handleStarChange(qIndex, val)}
                         maxStars={5}
@@ -223,7 +250,6 @@ const SurveyPreview = () => {
               </div>
             ))}
 
-            {/* Submit Button */}
             <button
               type="submit"
               style={{ backgroundColor: buttonColor }}
