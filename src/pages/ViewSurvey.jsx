@@ -2,8 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../assets/createClient";
-import { QRCodeCanvas } from "qrcode.react";
- // Ensure this is installed with `npm install qrcode.react`
 
 const ViewSurvey = () => {
   const { surveyId } = useParams();
@@ -11,15 +9,15 @@ const ViewSurvey = () => {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [shareLink, setShareLink] = useState("");
+  const [submitted, setSubmitted] = useState(false); // New state for submission message
 
   useEffect(() => {
     if (surveyId) {
       fetchSurveyFromDB(surveyId);
-      setShareLink(`${window.location.origin}/view/${surveyId}`);
     }
   }, [surveyId]);
 
+  // Fetch survey and questions from Supabase
   const fetchSurveyFromDB = async (id) => {
     setLoading(true);
     try {
@@ -57,6 +55,7 @@ const ViewSurvey = () => {
     setAnswers((prev) => ({ ...prev, [qIndex]: value }));
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!surveyId) {
@@ -95,7 +94,7 @@ const ViewSurvey = () => {
         return;
       }
 
-      alert("Survey submitted successfully!");
+      setSubmitted(true); // Show thank you message after successful submission
     } catch (error) {
       console.error("Unexpected error:", error);
       alert("An error occurred while submitting the survey.");
@@ -104,18 +103,16 @@ const ViewSurvey = () => {
 
   if (loading) return <p className="text-center mt-10">Loading survey...</p>;
   if (!survey) return <p className="text-center mt-10">Survey not found.</p>;
+  if (submitted) return <h1 className="text-center mt-10 text-green-600 text-2xl">Thank you for your response!</h1>;
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow py-6 mb-8">
-        <h1 className="text-3xl font-bold text-indigo-700 text-center">
-          {survey.title}
-        </h1>
-        <p className="text-center text-gray-600">{survey.description}</p>
-      </header>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="bg-white p-8 rounded shadow-lg w-full max-w-2xl">
+        <h1 className="text-3xl font-bold text-center text-indigo-700">{survey.title}</h1>
+        <p className="text-center text-gray-600 mb-6">{survey.description}</p>
 
-      <div className="container mx-auto px-4 pb-10 max-w-4xl">
-        <form onSubmit={handleSubmit} className="bg-white p-6 shadow rounded">
+        {/* Survey Questions Form */}
+        <form onSubmit={handleSubmit}>
           {questions.map((q, qIndex) => (
             <div key={q.id} className="mb-6">
               <label className="block font-medium text-gray-800 mb-2">
@@ -165,9 +162,7 @@ const ViewSurvey = () => {
                         onChange={() =>
                           setAnswers((prev) => ({
                             ...prev,
-                            [qIndex]: prev[qIndex]
-                              ? [...prev[qIndex], opt]
-                              : [opt],
+                            [qIndex]: prev[qIndex] ? [...prev[qIndex], opt] : [opt],
                           }))
                         }
                       />
@@ -195,31 +190,11 @@ const ViewSurvey = () => {
 
           <button
             type="submit"
-            className="w-full p-3 bg-indigo-600 text-white rounded mt-4 hover:bg-indigo-700"
+            className="w-full p-3 bg-indigo-600 text-white rounded hover:bg-indigo-700"
           >
             Submit
           </button>
         </form>
-      </div>
-
-      <div className="container mx-auto px-4 pb-10 max-w-4xl text-center">
-        <h2 className="text-xl font-bold text-gray-800 mt-6">Share Survey</h2>
-        <p className="text-gray-600">Copy the link or scan the QR code:</p>
-        <div className="flex flex-col items-center mt-4">
-          <QRCodeCanvas value={shareLink} size={150} />
-          <input
-            type="text"
-            value={shareLink}
-            readOnly
-            className="mt-2 p-2 border rounded text-center w-72"
-          />
-          <button
-            onClick={() => navigator.clipboard.writeText(shareLink)}
-            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Copy Link
-          </button>
-        </div>
       </div>
     </div>
   );

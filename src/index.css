@@ -1,4 +1,32 @@
 @import "tailwindcss";
 
-
+.react-multi-email {
+    min-height: 60px;
+    border: 1px solid #ccc;
+    padding: 5px;
+    border-radius: 5px;
+  }
+  
+  .react-multi-email__input {
+    border: none;
+    outline: none;
+    padding: 5px;
+  }
+  
+  .react-multi-email__tag {
+    background-color: #007bff;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    margin-right: 5px;
+    display: inline-block;
+  }
+  
+  .react-multi-email__remove {
+    margin-left: 5px;
+    cursor: pointer;
+    color: white;
+    font-weight: bold;
+  }
+  
 
