@@ -461,6 +461,7 @@ const SurveyBuilder = () => {
             <p className="text-gray-700 mt-2">
               {description || "Survey description here..."}
             </p>
+            
 
             {/* List questions in a read-only style */}
             <div className="mt-6 space-y-4">

@@ -1,26 +1,30 @@
 // src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react"; // Import Clerk hook
 import { supabase } from "../assets/createClient";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useUser(); // Get the logged-in user from Clerk
 
   // Local state for storing all surveys
   const [surveys, setSurveys] = useState([]);
-  // Loading & error states
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Whether user clicked the plus card (to show an input)
+  // For creating a new survey
   const [showInput, setShowInput] = useState(false);
   const [newName, setNewName] = useState("");
 
   // Fetch surveys on mount
   useEffect(() => {
-    fetchSurveys();
-  }, []);
+    if (user) {
+      fetchSurveys();
+    }
+  }, [user]);
 
+  // Fetch surveys belonging to the logged-in user
   const fetchSurveys = async () => {
     try {
       setLoading(true);
@@ -29,6 +33,7 @@ const Dashboard = () => {
       const { data, error } = await supabase
         .from("surveys")
         .select("*")
+        .eq("user_id", user.id) // Filter by logged-in user's ID
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -46,10 +51,12 @@ const Dashboard = () => {
     }
   };
 
+  // Show input box for creating a new survey
   const handlePlusClick = () => {
     setShowInput(true);
   };
 
+  // Save new survey to Supabase with user_id
   const handleSaveNew = async () => {
     if (!newName.trim()) {
       alert("Please enter a survey name.");
@@ -58,7 +65,10 @@ const Dashboard = () => {
 
     const { data, error } = await supabase
       .from("surveys")
-      .insert({ title: newName.trim() })
+      .insert({
+        title: newName.trim(),
+        user_id: user.id, // Attach Clerk user ID
+      })
       .select()
       .single();
 
@@ -68,14 +78,15 @@ const Dashboard = () => {
       return;
     }
 
-    // Navigate to builder for newly created survey
+    // Redirect to the builder page with survey ID
     navigate(`/builder/${data.id}`);
 
-    // Clear input
+    // Reset input
     setNewName("");
     setShowInput(false);
   };
 
+  // Delete survey
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this survey?");
     if (!confirmDelete) return;
@@ -91,6 +102,7 @@ const Dashboard = () => {
         alert("Failed to delete survey.");
         return;
       }
+
       // Remove from local state
       const updated = surveys.filter((s) => s.id !== id);
       setSurveys(updated);
@@ -100,6 +112,7 @@ const Dashboard = () => {
     }
   };
 
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -108,6 +121,7 @@ const Dashboard = () => {
     );
   }
 
+  // Show error state
   if (errorMsg) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -116,14 +130,14 @@ const Dashboard = () => {
     );
   }
 
+  // Main Dashboard UI
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Header Section */}
       <header className="bg-teal-600 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-white">
-            My Surveys{" "}
-            <span className="text-sm font-normal ml-2 text-teal-100">استبياناتي</span>
+            My Surveys <span className="text-sm font-normal ml-2 text-teal-100">استبياناتي</span>
           </h1>
           <p className="text-teal-100 text-sm">Create or manage your surveys effortlessly</p>
         </div>
@@ -132,7 +146,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 pt-6 pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {/* (A) Plus Card */}
+          {/* Add New Survey Card */}
           <div
             onClick={handlePlusClick}
             className="h-64 rounded shadow-sm bg-purple-300 hover:shadow-md transition flex items-center justify-center cursor-pointer"
@@ -140,7 +154,7 @@ const Dashboard = () => {
             <span className="text-4xl text-blue-700 font-bold">+</span>
           </div>
 
-          {/* (B) The "New Survey" Input Card (if user clicked plus) */}
+          {/* New Survey Input */}
           {showInput && (
             <div className="h-64 col-span-1 sm:col-span-2 rounded shadow-sm bg-white flex flex-col p-4 space-y-3">
               <p className="text-gray-700 font-semibold">Enter Survey Name</p>
@@ -171,22 +185,17 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* (C) Existing Surveys */}
+          {/* List Existing Surveys */}
           {surveys.map((survey) => (
             <div
               key={survey.id}
               className="relative h-64 rounded shadow-sm bg-purple-600 hover:shadow-md transition"
             >
-              {/* Centered text (example) */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-white text-base font-semibold">
-                  استبيان
-                </span>
+                <span className="text-white text-base font-semibold">استبيان</span>
               </div>
-              {/* Bottom Bar */}
-              <div className="absolute bottom-0 left-0 w-full bg-purple-100 
-                              flex items-center justify-between px-4 py-2 
-                              text-purple-900 text-sm">
+              {/* Bottom Action Bar */}
+              <div className="absolute bottom-0 left-0 w-full bg-purple-100 flex items-center justify-between px-4 py-2 text-purple-900 text-sm">
                 <span className="truncate font-medium">{survey.title}</span>
                 <div className="flex items-center space-x-3">
                   {/* Edit */}
