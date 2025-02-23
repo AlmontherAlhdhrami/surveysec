@@ -30,9 +30,7 @@ const router = createBrowserRouter([
       { path: 'builder', element: <SurveyBuilder /> },
       { path: 'builder/:surveyId', element: <SurveyBuilder /> },
       { path: 'preview', element: <SurveyPreview /> },
-      { path: 'view', element: <ViewSurvey /> },
-      { path: "view/:surveyId", element: <ViewSurvey /> },
-
+    
 
       
      
@@ -40,6 +38,9 @@ const router = createBrowserRouter([
       { path: 'contact', element: <Contact /> },
     ],
   },
+  { path: 'view', element: <ViewSurvey /> },
+  { path: "view/:surveyId", element: <ViewSurvey /> },
+
   {
     path: '/auth/sign-in',
     element: <SignIN />,
