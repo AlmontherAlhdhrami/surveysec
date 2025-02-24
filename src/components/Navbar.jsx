@@ -24,6 +24,8 @@ const Navbar = () => {
           <NavLink to="/Dashboard" label="Dashboard" currentPath={location.pathname} />
           <NavLink to="/about" label="About" currentPath={location.pathname} />
           <NavLink to="/contact" label="Contact" currentPath={location.pathname} />
+          <NavLink to="/SurveyAnalysisPage" label="SurveyAnalysisPage" currentPath={location.pathname} />
+
         </div>
 
         {/* Right side actions */}

@@ -16,7 +16,7 @@ import SurveyPreview from './pages/SurveyPreview';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import ViewSurvey from './pages/ViewSurvey';
-
+import SurveyAnalysisPage from './pages/SurveyAnalysisPage';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -32,7 +32,7 @@ const router = createBrowserRouter([
       { path: 'preview', element: <SurveyPreview /> },
     
 
-      
+      {path:'SurveyAnalysisPage',element:<SurveyAnalysisPage/>},
      
       { path: 'about', element: <About /> },
       { path: 'contact', element: <Contact /> },
