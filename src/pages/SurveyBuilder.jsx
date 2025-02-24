@@ -301,15 +301,7 @@ const SurveyBuilder = () => {
             />
 
             {/* Button Color */}
-            <h3 className="text-md font-semibold text-indigo-600">
-              Button Color
-            </h3>
-            <input
-              type="color"
-              value={buttonColor}
-              onChange={(e) => setButtonColor(e.target.value)}
-              className="cursor-pointer w-16 h-10 p-1 border rounded mb-4 mt-1"
-            />
+           
 
             {/* Answer Accent Color (radio/checkbox) */}
             <h3 className="text-md font-semibold text-indigo-600">

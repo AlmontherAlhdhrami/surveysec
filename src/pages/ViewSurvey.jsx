@@ -1,7 +1,23 @@
-// src/pages/ViewSurvey.jsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../assets/createClient";
+
+// Simple Star Rating Component
+const StarRating = ({ value, onChange, maxStars = 5 }) => {
+  return (
+    <div className="flex">
+      {Array.from({ length: maxStars }, (_, index) => (
+        <span
+          key={index}
+          className={`cursor-pointer text-2xl ${index < value ? "text-yellow-500" : "text-gray-300"}`}
+          onClick={() => onChange(index + 1)}
+        >
+          ★
+        </span>
+      ))}
+    </div>
+  );
+};
 
 const ViewSurvey = () => {
   const { surveyId } = useParams();
@@ -9,7 +25,7 @@ const ViewSurvey = () => {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [submitted, setSubmitted] = useState(false); // New state for submission message
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (surveyId) {
@@ -42,8 +58,14 @@ const ViewSurvey = () => {
         return;
       }
 
+      // Parse options if they are stored as a string
+      const processedQuestions = questionsData.map((q) => ({
+        ...q,
+        options: typeof q.options === "string" ? JSON.parse(q.options) : q.options || [],
+      }));
+
       setSurvey(surveyData);
-      setQuestions(questionsData);
+      setQuestions(processedQuestions);
     } catch (err) {
       console.error("Unexpected error:", err);
     } finally {
@@ -94,7 +116,7 @@ const ViewSurvey = () => {
         return;
       }
 
-      setSubmitted(true); // Show thank you message after successful submission
+      setSubmitted(true);
     } catch (error) {
       console.error("Unexpected error:", error);
       alert("An error occurred while submitting the survey.");
@@ -111,7 +133,6 @@ const ViewSurvey = () => {
         <h1 className="text-3xl font-bold text-center text-indigo-700">{survey.title}</h1>
         <p className="text-center text-gray-600 mb-6">{survey.description}</p>
 
-        {/* Survey Questions Form */}
         <form onSubmit={handleSubmit}>
           {questions.map((q, qIndex) => (
             <div key={q.id} className="mb-6">
@@ -120,6 +141,7 @@ const ViewSurvey = () => {
                 {q.is_required && <span className="text-red-500 ml-1">*</span>}
               </label>
 
+              {/* Handle all question types */}
               {q.question_type === "shortAnswer" && (
                 <input
                   type="text"
@@ -184,6 +206,15 @@ const ViewSurvey = () => {
                     </option>
                   ))}
                 </select>
+              )}
+
+              {/* ⭐ Star Rating Type */}
+              {q.question_type === "rating" && (
+                <StarRating
+                  value={answers[qIndex] || 0}
+                  onChange={(starValue) => handleChange(qIndex, starValue)}
+                  maxStars={5}
+                />
               )}
             </div>
           ))}
