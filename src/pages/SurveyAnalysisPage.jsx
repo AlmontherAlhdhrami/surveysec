@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "../assets/createClient";
-import ReportGenerator from "../service/ReportGenerator";
 import { useUser } from "@clerk/clerk-react";
-import { Bar } from "react-chartjs-2";
+import { Bar, Pie, Line } from "react-chartjs-2";
 import Chart from "chart.js/auto";
 import { AIChatSession } from "../service/AIAnalysis";
 
@@ -15,7 +14,8 @@ const SurveyAnalysisPage = () => {
   const [aiReport, setAiReport] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const reportRef = useRef(); // For print section reference
+  const [chartType, setChartType] = useState("Bar"); // New chart selection state
+  const reportRef = useRef();
 
   useEffect(() => {
     const fetchSurveys = async () => {
@@ -75,8 +75,7 @@ const SurveyAnalysisPage = () => {
         return `${q.question_text}: ${relatedAnswers.map((a) => a.answer_value).join(", ")}`;
       }).join("\n");
 
-      // Asking the AI for a full analysis
-      const prompt = `Generate a detailed report based on this survey data. Include trends, the most common answers, response distribution, and recommendations for future surveys:\n${formattedData}`;
+      const prompt = `Provide a detailed survey analysis. Highlight response trends, most frequent answers, and suggest areas for improvement based on this data:\n${formattedData}`;
       const aiResponse = await AIChatSession.sendMessage(prompt);
       setAiReport(aiResponse.response.text);
     } catch (error) {
@@ -100,9 +99,14 @@ const SurveyAnalysisPage = () => {
         {
           label: "Responses",
           data: Object.values(answerCount),
-          backgroundColor: "rgba(32, 20, 198, 0.6)",
+          backgroundColor: [
+            "rgba(75, 192, 192, 0.6)",
+            "rgba(255, 159, 64, 0.6)",
+            "rgba(153, 102, 255, 0.6)",
+            "rgba(255, 205, 86, 0.6)"
+          ],
           borderColor: "rgba(54, 162, 235, 1)",
-          borderWidth: 3,
+          borderWidth: 2,
         },
       ],
     };
@@ -110,6 +114,19 @@ const SurveyAnalysisPage = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const ChartComponent = ({ data }) => {
+    switch (chartType) {
+      case "Bar":
+        return <Bar data={data} />;
+      case "Pie":
+        return <Pie data={data} />;
+      case "Line":
+        return <Line data={data} />;
+      default:
+        return <Bar data={data} />;
+    }
   };
 
   return (
@@ -136,6 +153,19 @@ const SurveyAnalysisPage = () => {
             Analysis for: {selectedSurvey.title}
           </h2>
 
+          <div className="text-center mb-4">
+            <label className="mr-2">Select Chart Type: </label>
+            <select
+              value={chartType}
+              onChange={(e) => setChartType(e.target.value)}
+              className="p-2 rounded bg-white shadow"
+            >
+              <option value="Bar">Bar Chart</option>
+              <option value="Pie">Pie Chart</option>
+              <option value="Line">Line Chart</option>
+            </select>
+          </div>
+
           {loading ? (
             <p className="text-center">Loading...</p>
           ) : (
@@ -147,19 +177,13 @@ const SurveyAnalysisPage = () => {
                     <div key={q.id} className="p-3 bg-white rounded shadow">
                       <h3 className="text-lg font-medium mb-2">{q.question_text}</h3>
                       <div className="h-48">
-                        <Bar
-                          data={generateChartData(q.id)}
-                          options={{
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                          }}
-                        />
+                        <ChartComponent data={generateChartData(q.id)} />
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Detailed AI Report */}
+                {/* AI Report Section */}
                 <div className="mt-6 p-4 bg-white rounded shadow">
                   <h3 className="text-lg font-semibold mb-2">AI Report Summary</h3>
                   <p>{aiReport || "No AI analysis available."}</p>
