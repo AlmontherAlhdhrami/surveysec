@@ -141,9 +141,10 @@ const SurveyAnalysisPage = () => {
             <button
               key={survey.id}
               onClick={() => handleSurveySelection(survey)}
-              className="p-4 bg-white shadow rounded hover:bg-blue-200 transition"
+              className="p-4 bg-purple-500 shadow rounded  hover:bg-purple-300 transition size-40  w-2xs"
             >
               {survey.title}
+              {survey.description}
             </button>
           ))}
         </div>

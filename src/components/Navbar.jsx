@@ -115,7 +115,12 @@ const Navbar = () => {
             currentPath={location.pathname}
             onClick={() => setIsOpen(false)}
           />
-
+ <NavLink
+            to="/SurveyAnalysisPage"
+            label="SurveyAnalysisPage"
+            currentPath={location.pathname}
+            onClick={() => setIsOpen(false)}
+          />
           {/* Show these buttons in the mobile menu as well */}
           <div className="flex flex-col items-center gap-3 mt-4">
             {isSignedIn ? (
