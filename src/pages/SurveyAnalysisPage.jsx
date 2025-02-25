@@ -21,6 +21,7 @@ const SurveyAnalysisPage = () => {
   const [answers, setAnswers] = useState([]);
   const [aiReport, setAiReport] = useState("");
   const [summaryStats, setSummaryStats] = useState(null);
+  const [questionStats, setQuestionStats] = useState([]); // Per-question statistics
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [chartType, setChartType] = useState("Bar");
@@ -60,9 +61,19 @@ const SurveyAnalysisPage = () => {
 
       setAnswers(answersData || []);
 
-      // Calculate statistics
+      // Calculate overall statistics
       const stats = calculateSummaryStatistics(answersData);
       setSummaryStats(stats);
+
+      // Calculate stats for each question
+      const statsPerQuestion = questionsData.map((question) => {
+        const relatedAnswers = answersData.filter((a) => a.question_id === question.id);
+        return {
+          questionId: question.id,
+          stats: calculateSummaryStatistics(relatedAnswers),
+        };
+      });
+      setQuestionStats(statsPerQuestion);
 
       await generateAIReport(questionsData, answersData);
     } catch (err) {
@@ -121,11 +132,11 @@ const SurveyAnalysisPage = () => {
     if (!summaryStats) return null;
 
     return {
-      labels: ["Minimum", "Average", "Maximum"],
+      labels: ["Minimum", "Average", "Maximum","variance","stdDev"],
       datasets: [
         {
           label: "Statistical Summary",
-          data: [summaryStats.min, summaryStats.mean, summaryStats.max],
+          data: [summaryStats.min, summaryStats.mean, summaryStats.max,summaryStats.variance,summaryStats.stdDev ],
           backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56"],
           borderColor: ["#FF6384", "#36A2EB", "#FFCE56"],
           borderWidth: 2,
@@ -199,14 +210,20 @@ const SurveyAnalysisPage = () => {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {questions.map((q) => (
-                  <div key={q.id} className="p-3 bg-white rounded shadow">
-                    <h3 className="text-lg font-medium mb-2">{q.question_text}</h3>
-                    <div className="h-48">
-                      <ChartComponent data={generateChartData(q.id)} questionId={q.id} />
+                {questions.map((q) => {
+                  const stats = questionStats.find((qs) => qs.questionId === q.id)?.stats;
+                  return (
+                    <div key={q.id} className="p-3 bg-white rounded shadow">
+                      <h3 className="text-lg font-medium mb-2">{q.question_text}</h3>
+                      {stats && (
+                        <p>Min: {stats.min}, Avg: {stats.mean.toFixed(2)}, Max: {stats.max}, variance:{ stats.variance} ,<br></br>stdDev :{ stats.stdDev}</p>
+                      )}
+                      <div className="h-48">
+                        <ChartComponent data={generateChartData(q.id)} questionId={q.id} />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="mt-6 p-4 bg-white rounded shadow">
