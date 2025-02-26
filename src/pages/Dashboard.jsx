@@ -1,39 +1,37 @@
-// src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react"; // Import Clerk hook
+import { useUser } from "@clerk/clerk-react";
 import { supabase } from "../assets/createClient";
+import {
+  ClipboardDocumentIcon,
+  PlusIcon,
+  PencilIcon,
+  EyeIcon,
+  TrashIcon,
+  ChartBarIcon
+} from "@heroicons/react/24/outline";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user } = useUser(); // Get the logged-in user from Clerk
-
-  // Local state for storing all surveys
+  const { user } = useUser();
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // For creating a new survey
   const [showInput, setShowInput] = useState(false);
   const [newName, setNewName] = useState("");
 
-  // Fetch surveys on mount
   useEffect(() => {
-    if (user) {
-      fetchSurveys();
-    }
+    if (user) fetchSurveys();
   }, [user]);
 
-  // Fetch surveys belonging to the logged-in user
   const fetchSurveys = async () => {
     try {
       setLoading(true);
       setErrorMsg("");
-
       const { data, error } = await supabase
         .from("surveys")
         .select("*")
-        .eq("user_id", user.id) // Filter by logged-in user's ID
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -41,7 +39,6 @@ const Dashboard = () => {
         setErrorMsg("Could not load surveys.");
         return;
       }
-
       setSurveys(data || []);
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -51,12 +48,8 @@ const Dashboard = () => {
     }
   };
 
-  // Show input box for creating a new survey
-  const handlePlusClick = () => {
-    setShowInput(true);
-  };
+  const handlePlusClick = () => setShowInput(true);
 
-  // Save new survey to Supabase with user_id
   const handleSaveNew = async () => {
     if (!newName.trim()) {
       alert("Please enter a survey name.");
@@ -65,10 +58,7 @@ const Dashboard = () => {
 
     const { data, error } = await supabase
       .from("surveys")
-      .insert({
-        title: newName.trim(),
-        user_id: user.id, // Attach Clerk user ID
-      })
+      .insert({ title: newName.trim(), user_id: user.id })
       .select()
       .single();
 
@@ -78,146 +68,161 @@ const Dashboard = () => {
       return;
     }
 
-    // Redirect to the builder page with survey ID
     navigate(`/builder/${data.id}`);
-
-    // Reset input
     setNewName("");
     setShowInput(false);
   };
 
-  // Delete survey
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this survey?");
     if (!confirmDelete) return;
 
     try {
-      const { error } = await supabase
-        .from("surveys")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        console.error("Error deleting survey:", error);
-        alert("Failed to delete survey.");
-        return;
-      }
-
-      // Remove from local state
-      const updated = surveys.filter((s) => s.id !== id);
-      setSurveys(updated);
+      const { error } = await supabase.from("surveys").delete().eq("id", id);
+      if (error) throw error;
+      setSurveys(surveys.filter((s) => s.id !== id));
     } catch (err) {
-      console.error("Unexpected error deleting survey:", err);
-      alert("An error occurred while deleting survey.");
+      console.error("Error deleting survey:", err);
+      alert("Failed to delete survey.");
     }
   };
 
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600 animate-pulse">Loading surveys...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
-  // Show error state
   if (errorMsg) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-red-600">{errorMsg}</p>
+        <div className="bg-red-50 p-6 rounded-lg max-w-md text-center">
+          <h3 className="text-red-600 font-semibold mb-2">Error Loading Surveys</h3>
+          <p className="text-red-700">{errorMsg}</p>
+        </div>
       </div>
     );
   }
 
-  // Main Dashboard UI
   return (
-    <div className="bg-gray-50 min-h-screen">
-      {/* Header Section */}
-      <header className="bg-teal-600 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-white">
-            My Surveys <span className="text-sm font-normal ml-2 text-teal-100">استبياناتي</span>
-          </h1>
-          <p className="text-teal-100 text-sm">Create or manage your surveys effortlessly</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with optimized spacing */}
+      <header className="bg-gradient-to-r from-indigo-600 to-purple-700 shadow-sm pb-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28">
+          <div className="flex items-center justify-between space-x-6">
+            <div className="flex items-center space-x-4">
+              <ClipboardDocumentIcon className="h-8 w-8 text-white" />
+              <div>
+                <h1 className="text-2xl font-bold text-white">Survey Dashboard</h1>
+                <p className="text-indigo-100 text-sm mt-2">
+                  {surveys.length} active surveys • Last modified: {new Date().toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handlePlusClick}
+              className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all"
+            >
+              <PlusIcon className="h-5 w-5 text-white" />
+              <span className="text-white font-medium">New Survey</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 pt-6 pb-12">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {/* Add New Survey Card */}
+      {/* Main Content with proper spacing */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          
+          {/* Create New Card */}
           <div
             onClick={handlePlusClick}
-            className="h-64 rounded shadow-sm bg-purple-300 hover:shadow-md transition flex items-center justify-center cursor-pointer"
+            className="group h-48 bg-white/50 hover:bg-white border-2 border-dashed border-gray-300 hover:border-indigo-300 rounded-xl cursor-pointer transition-all flex flex-col items-center justify-center"
           >
-            <span className="text-4xl text-blue-700 font-bold">+</span>
+            <PlusIcon className="h-10 w-10 text-gray-400 group-hover:text-indigo-500 mb-3 transition-colors" />
+            <p className="text-gray-500 group-hover:text-indigo-600 font-medium transition-colors">
+              Create New Survey
+            </p>
           </div>
 
-          {/* New Survey Input */}
+          {/* New Survey Form */}
           {showInput && (
-            <div className="h-64 col-span-1 sm:col-span-2 rounded shadow-sm bg-white flex flex-col p-4 space-y-3">
-              <p className="text-gray-700 font-semibold">Enter Survey Name</p>
-              <input
-                type="text"
-                className="border rounded p-2 focus:outline-none focus:ring-2 focus:ring-teal-300"
-                placeholder="Survey Title..."
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-              <div className="flex gap-3 mt-auto">
-                <button
-                  onClick={handleSaveNew}
-                  className="flex-1 bg-teal-600 text-white py-2 rounded hover:bg-teal-700 transition"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setShowInput(false);
-                    setNewName("");
-                  }}
-                  className="flex-1 bg-gray-300 text-gray-800 py-2 rounded hover:bg-gray-400 transition"
-                >
-                  Cancel
-                </button>
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-white rounded-xl shadow-sm p-8 border border-gray-200">
+              <div className="max-w-2xl mx-auto space-y-6">
+                <h3 className="text-xl font-semibold text-gray-800">Start New Survey</h3>
+                <input
+                  type="text"
+                  className="w-full px-5 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter survey title..."
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex space-x-4">
+                  <button
+                    onClick={handleSaveNew}
+                    className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                  >
+                    Create Survey
+                  </button>
+                  <button
+                    onClick={() => setShowInput(false)}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* List Existing Surveys */}
+          {/* Survey Cards */}
           {surveys.map((survey) => (
             <div
               key={survey.id}
-              className="relative h-64 rounded shadow-sm bg-purple-600 hover:shadow-md transition"
+              className="h-48 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 flex flex-col"
             >
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-white text-base font-semibold">استبيان</span>
-              </div>
-              {/* Bottom Action Bar */}
-              <div className="absolute bottom-0 left-0 w-full bg-purple-100 flex items-center justify-between px-4 py-2 text-purple-900 text-sm">
-                <span className="truncate font-medium">{survey.title}</span>
-                <div className="flex items-center space-x-3">
-                  {/* Edit */}
-                  <Link
-                    to={`/builder/${survey.id}`}
-                    className="hover:underline font-medium"
-                  >
-                    Edit
-                  </Link>
-                  {/* View */}
-                  <Link
-                    to={`/view/${survey.id}`}
-                    className="hover:underline font-medium"
-                  >
-                    View
-                  </Link>
-                  {/* Delete */}
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="flex items-start justify-between mb-4">
+                  <ChartBarIcon className="h-6 w-6 text-indigo-600" />
+                  <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
+                    {survey.status || "Draft"}
+                  </span>
+                </div>
+                
+                <h3 className="text-lg font-semibold text-gray-800 truncate mb-2">
+                  {survey.title}
+                </h3>
+                <p className="text-sm text-gray-500 mb-auto">
+                  Created: {new Date(survey.created_at).toLocaleDateString()}
+                </p>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between border-t pt-4">
+                  <div className="flex space-x-4">
+                    <Link
+                      to={`/builder/${survey.id}`}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      title="Edit"
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </Link>
+                    <Link
+                      to={`/view/${survey.id}`}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      title="Preview"
+                    >
+                      <EyeIcon className="h-5 w-5" />
+                    </Link>
+                  </div>
                   <button
                     onClick={() => handleDelete(survey.id)}
-                    className="hover:underline font-medium"
+                    className="text-gray-400 hover:text-red-600 transition-colors"
+                    title="Delete"
                   >
-                    Delete
+                    <TrashIcon className="h-5 w-5" />
                   </button>
                 </div>
               </div>

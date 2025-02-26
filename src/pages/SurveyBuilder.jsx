@@ -1,17 +1,20 @@
-// src/pages/SurveyBuilder.jsx
 import React, { useEffect } from "react";
 import { useSurveyContext } from "../context/SurveyContext";
 import { Link, useParams } from "react-router-dom";
-import { supabase } from "../assets/createClient"; // <-- Import your configured Supabase client
+import { supabase } from "../assets/createClient";
+import {
+  PlusIcon,
+  TrashIcon,
+  EyeIcon,
+  StarIcon
+} from "@heroicons/react/24/outline";
+import { SwatchIcon } from "@heroicons/react/24/solid";
 
 const SurveyBuilder = () => {
-  // Optionally, you might have a route param like ":surveyId"
-  // We'll see if there's an existing ID to load or update.
   const { surveyId } = useParams();
-
   const {
-    surveyDBId,        // A state in context to store the actual DB "surveys.id"
-    setSurveyDBId,     // e.g., setSurveyDBId once we create or fetch from DB
+    surveyDBId,
+    setSurveyDBId,
     title,
     setTitle,
     description,
@@ -26,54 +29,36 @@ const SurveyBuilder = () => {
     setAnswerColor,
   } = useSurveyContext();
 
-  // Example: If we have a "surveyId" param, let's load it from DB on mount
-  // or you can do it differently if you'd prefer storing in context already.
+  // Existing useEffect and data fetching logic remains the same
   useEffect(() => {
     if (surveyId) {
       fetchSurveyFromDB(surveyId);
     }
   }, [surveyId]);
 
-  // Fetch existing survey + questions from DB and update context
   const fetchSurveyFromDB = async (id) => {
     try {
-      // 1) Fetch the survey
-      let { data: survey, error: surveyError } = await supabase
+      const { data: survey, error: surveyError } = await supabase
         .from("surveys")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (surveyError) {
-        console.error("Error fetching survey:", surveyError);
-        return;
-      }
+      if (surveyError) throw surveyError;
 
-      // 2) Fetch questions
-      let { data: qData, error: qError } = await supabase
+      const { data: qData, error: qError } = await supabase
         .from("questions")
         .select("*")
         .eq("survey_id", id);
 
-      if (qError) {
-        console.error("Error fetching questions:", qError);
-        return;
-      }
+      if (qError) throw qError;
 
-      // 3) Update context states
-      setSurveyDBId(survey.id);         // store the DB id in context
-      setTitle(survey.title);
-      setDescription(survey.description);
+      setSurveyDBId(survey.id);
+      setTitle(survey.title || "");
+      setDescription(survey.description || ""); 
 
-      // If you stored frameColor, buttonColor, etc. in DB, load them here
-      // e.g., if you had columns "frame_color", "button_color", ...
-      // setFrameColor(survey.frame_color || '#ffffff');
-      // setButtonColor(survey.button_color || '#4F46E5');
-      // setAnswerColor(survey.answer_color || '#4F46E5');
-
-      // Map the question records to the shape your builder expects
       const mappedQuestions = qData.map((dbQ) => ({
-        id: dbQ.id, // keep the DB ID for updates
+        id: dbQ.id,
         text: dbQ.question_text,
         type: dbQ.question_type,
         required: dbQ.is_required,
@@ -81,150 +66,88 @@ const SurveyBuilder = () => {
       }));
       setQuestions(mappedQuestions);
     } catch (err) {
-      console.error("Unexpected error loading survey:", err);
+      console.error("Error loading survey:", err);
+      alert("Failed to load survey data");
     }
   };
 
-  // Add new question
+  // All question handling functions remain the same
   const addQuestion = () => {
     setQuestions([
       ...questions,
-      {
-        // no "id" because it's not saved in DB yet
-        text: "",
-        type: "shortAnswer",
-        options: [],
-        required: false,
-      },
+      { text: "", type: "shortAnswer", options: [], required: false },
     ]);
   };
 
-  // Update question text
   const updateQuestionText = (index, value) => {
     const updated = [...questions];
     updated[index].text = value;
     setQuestions(updated);
   };
 
-  // Update question type
   const updateQuestionType = (index, value) => {
     const updated = [...questions];
     updated[index].type = value;
-
-    if (["multipleChoice", "checkboxes", "dropdown"].includes(value)) {
-      updated[index].options = [""];
-    } else {
-      updated[index].options = [];
-    }
-
+    updated[index].options = ["multipleChoice", "checkboxes", "dropdown"].includes(value)
+      ? [""]
+      : [];
     setQuestions(updated);
   };
 
-  // Toggle required
   const toggleRequired = (index) => {
     const updated = [...questions];
     updated[index].required = !updated[index].required;
     setQuestions(updated);
   };
 
-  // Update an individual option
   const updateOption = (qIndex, oIndex, value) => {
     const updated = [...questions];
     updated[qIndex].options[oIndex] = value;
     setQuestions(updated);
   };
 
-  // Add a new option
   const addOption = (qIndex) => {
     const updated = [...questions];
     updated[qIndex].options.push("");
     setQuestions(updated);
   };
 
-  // Remove a specific option
   const removeOption = (qIndex, oIndex) => {
     const updated = [...questions];
     updated[qIndex].options.splice(oIndex, 1);
     setQuestions(updated);
   };
 
-  // Remove entire question
   const removeQuestion = (qIndex) => {
     const updated = questions.filter((_, idx) => idx !== qIndex);
     setQuestions(updated);
   };
 
-  // ===============================================================
-  // 3) "Save Survey" -> Upsert to DB  (Only this part was adjusted)
-  // ===============================================================
   const handleSaveSurvey = async () => {
     try {
       let finalSurveyId = surveyDBId;
 
-      // If we don't have an existing ID, let's create a new row
       if (!finalSurveyId) {
         const { data: newSurvey, error: surveyError } = await supabase
           .from("surveys")
-          .insert({
-            title,
-            description,
-            // Optionally store colors in DB if you want
-            // frame_color: frameColor,
-            // button_color: buttonColor,
-            // answer_color: answerColor,
-          })
-          .select() // مهم حتى نسترجع بيانات الصف الجديد
+          .insert({ title, description })
+          .select()
           .single();
 
-        if (surveyError) {
-          console.error("Error creating new survey:", surveyError);
-          alert("Failed to create a new survey in DB.");
-          return;
-        }
-
-        // Store new ID
+        if (surveyError) throw surveyError;
         finalSurveyId = newSurvey.id;
         setSurveyDBId(newSurvey.id);
       } else {
-        // If we do have an ID, update existing
         const { error: updateError } = await supabase
           .from("surveys")
-          .update({
-            title,
-            description,
-            // frame_color: frameColor,
-            // button_color: buttonColor,
-            // answer_color: answerColor,
-          })
+          .update({ title, description })
           .eq("id", finalSurveyId);
-
-        if (updateError) {
-          console.error("Error updating survey:", updateError);
-          alert("Failed to update existing survey.");
-          return;
-        }
+        if (updateError) throw updateError;
       }
 
-      // 3.1) Upsert each question
       for (const q of questions) {
-        if (!q.id) {
-          // Insert new question
-          const { error: insertError } = await supabase
-            .from("questions")
-            .insert({
-              survey_id: finalSurveyId,
-              question_text: q.text,
-              question_type: q.type,
-              is_required: q.required,
-              options: q.options, // JSON array
-            });
-
-          if (insertError) {
-            console.error("Insert question error:", insertError);
-          }
-        } else {
-          // Update existing question
-          const { error: updateQError } = await supabase
+        if (q.id) {
+          await supabase
             .from("questions")
             .update({
               question_text: q.text,
@@ -233,35 +156,38 @@ const SurveyBuilder = () => {
               options: q.options,
             })
             .eq("id", q.id);
-
-          if (updateQError) {
-            console.error("Update question error:", updateQError);
-          }
+        } else {
+          await supabase.from("questions").insert({
+            survey_id: finalSurveyId,
+            question_text: q.text,
+            question_type: q.type,
+            is_required: q.required,
+            options: q.options,
+          });
         }
       }
 
       alert("Survey saved successfully!");
     } catch (err) {
-      console.error("Unexpected error saving survey:", err);
-      alert("An unexpected error occurred while saving your survey.");
+      console.error("Save error:", err);
+      alert("Error saving survey");
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header Section */}
       <header className="bg-white shadow py-6 mb-8">
         <h1 className="text-3xl font-bold text-indigo-700 text-center">
           Survey Builder
         </h1>
       </header>
 
-      {/* Main Container */}
       <div className="container mx-auto px-4 pb-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column: Editor Controls */}
           <div className="bg-white p-6 shadow rounded">
-            <h2 className="text-xl font-bold text-indigo-600 mb-4">
+            <h2 className="text-xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
+              <SwatchIcon className="h-5 w-5 text-indigo-600" />
               Survey Settings
             </h2>
 
@@ -282,41 +208,53 @@ const SurveyBuilder = () => {
               Survey Description
             </label>
             <textarea
-              placeholder="Survey Description..."
-              className="w-full p-2 mb-4 border rounded focus:ring focus:ring-indigo-200"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+  placeholder="Survey Description..."
+  className="w-full p-2 mb-4 border rounded focus:ring focus:ring-indigo-200"
+  rows={3}
+  value={description || ""} // Additional safety check
+  onChange={(e) => setDescription(e.target.value)}
+/>
 
-            {/* Frame Color */}
-            <h3 className="text-md font-semibold text-indigo-600 mt-2">
-              Outer Frame / Page Background
-            </h3>
-            <input
-              type="color"
-              value={frameColor}
-              onChange={(e) => setFrameColor(e.target.value)}
-              className="cursor-pointer w-16 h-10 p-1 border rounded mb-4 mt-1"
-            />
+            {/* Color Customization */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Frame Color
+                </label>
+                <input
+                  type="color"
+                  value={frameColor}
+                  onChange={(e) => setFrameColor(e.target.value)}
+                  className="w-full h-10 rounded cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Button Color
+                </label>
+                <input
+                  type="color"
+                  value={buttonColor}
+                  onChange={(e) => setButtonColor(e.target.value)}
+                  className="w-full h-10 rounded cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Answer Color
+                </label>
+                <input
+                  type="color"
+                  value={answerColor}
+                  onChange={(e) => setAnswerColor(e.target.value)}
+                  className="w-full h-10 rounded cursor-pointer"
+                />
+              </div>
+            </div>
 
-            {/* Button Color */}
-           
+            <hr className="my-6" />
 
-            {/* Answer Accent Color (radio/checkbox) */}
-            <h3 className="text-md font-semibold text-indigo-600">
-              Answer Accent Color
-            </h3>
-            <input
-              type="color"
-              value={answerColor}
-              onChange={(e) => setAnswerColor(e.target.value)}
-              className="cursor-pointer w-16 h-10 p-1 border rounded mb-6 mt-1"
-            />
-
-            <hr className="mb-6" />
-
-            {/* Questions */}
+            {/* Questions Section */}
             <h2 className="text-lg font-bold text-indigo-600 mb-2">
               Questions
             </h2>
@@ -325,9 +263,18 @@ const SurveyBuilder = () => {
                 key={qIndex}
                 className="mt-3 p-4 border rounded bg-gray-50 shadow-sm"
               >
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Question Text
-                </label>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Question {qIndex + 1}
+                  </label>
+                  <button
+                    onClick={() => removeQuestion(qIndex)}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
                 <input
                   type="text"
                   placeholder="Question text..."
@@ -336,110 +283,86 @@ const SurveyBuilder = () => {
                   onChange={(e) => updateQuestionText(qIndex, e.target.value)}
                 />
 
-                <label className="block text-sm font-medium text-gray-700 mt-3 mb-1">
-                  Question Type
-                </label>
-                <select
-                  className="w-full p-2 border rounded focus:ring focus:ring-indigo-200"
-                  value={q.type}
-                  onChange={(e) => updateQuestionType(qIndex, e.target.value)}
-                >
-                  <option value="shortAnswer">Short Answer</option>
-                  <option value="paragraph">Paragraph</option>
-                  <option value="multipleChoice">Radio (Single Choice)</option>
-                  <option value="checkboxes">Checkboxes (Multiple Select)</option>
-                  <option value="dropdown">Dropdown</option>
-                  <option value="rating">Star Rating</option>
-                </select>
-
-                {/* Required / Remove */}
-                <div className="flex items-center justify-between mt-3">
-                  <label className="flex items-center text-sm">
+                <div className="mt-3 grid grid-cols-2 gap-4">
+                  <select
+                    className="w-full p-2 border rounded focus:ring focus:ring-indigo-200"
+                    value={q.type}
+                    onChange={(e) => updateQuestionType(qIndex, e.target.value)}
+                  >
+                    <option value="shortAnswer">Short Answer</option>
+                    <option value="paragraph">Paragraph</option>
+                    <option value="multipleChoice">Multiple Choice</option>
+                    <option value="checkboxes">Checkboxes</option>
+                    <option value="dropdown">Dropdown</option>
+                    <option value="rating">Star Rating</option>
+                  </select>
+                  <label className="flex items-center justify-end space-x-2">
                     <input
                       type="checkbox"
-                      className="mr-2"
                       checked={q.required}
                       onChange={() => toggleRequired(qIndex)}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     />
-                    Required
+                    <span className="text-sm">Required</span>
                   </label>
-                  <button
-                    onClick={() => removeQuestion(qIndex)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 text-sm rounded"
-                  >
-                    Remove
-                  </button>
                 </div>
 
-                {/* Options: Only for multipleChoice, checkboxes, dropdown */}
                 {["multipleChoice", "checkboxes", "dropdown"].includes(q.type) && (
-                  <div className="mt-3">
-                    <p className="text-sm font-semibold text-gray-600 mb-1">
-                      Options:
-                    </p>
+                  <div className="mt-3 space-y-2">
                     {q.options.map((option, oIndex) => (
-                      <div
-                        className="flex items-center mt-2"
-                        key={oIndex}
-                      >
+                      <div key={oIndex} className="flex items-center gap-2">
                         <input
                           type="text"
-                          placeholder="Enter option..."
+                          placeholder={`Option ${oIndex + 1}`}
                           className="w-full p-2 border rounded focus:ring focus:ring-indigo-200"
                           value={option}
-                          onChange={(e) =>
-                            updateOption(qIndex, oIndex, e.target.value)
-                          }
+                          onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
                         />
-                        {/* Remove Option Button */}
                         <button
-                          className="ml-2 bg-red-500 hover:bg-red-600 text-white px-2 py-1 text-sm rounded"
                           onClick={() => removeOption(qIndex, oIndex)}
+                          className="text-red-500 hover:text-red-600"
                         >
-                          X
+                          <TrashIcon className="h-5 w-5" />
                         </button>
                       </div>
                     ))}
                     <button
                       onClick={() => addOption(qIndex)}
-                      className="mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                      className="text-indigo-600 hover:text-indigo-700 text-sm flex items-center gap-1"
                     >
-                      ➕ Add Option
+                      <PlusIcon className="h-4 w-4" />
+                      Add Option
                     </button>
                   </div>
                 )}
               </div>
             ))}
 
-            {/* Add Question */}
             <button
               onClick={addQuestion}
-              style={{ backgroundColor: buttonColor }}
-              className="mt-6 w-full px-4 py-2 text-white rounded hover:opacity-90 transition-opacity"
+              className="mt-6 w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
             >
-              ➕ Add Question
+              <PlusIcon className="h-5 w-5" />
+              Add Question
             </button>
 
-            {/* Save Survey */}
-            <button
-              onClick={handleSaveSurvey}
-              style={{ backgroundColor: buttonColor }}
-              className="mt-3 w-full px-4 py-2 text-white rounded hover:opacity-90 transition-opacity"
-            >
-              Save Survey
-            </button>
-
-            {/* Go to Full Interactive Preview */}
-            <Link
-              to="/preview"
-              style={{ backgroundColor: buttonColor }}
-              className="mt-3 inline-block w-full text-center px-4 py-2 text-white rounded hover:opacity-90 transition-opacity"
-            >
-              Go to Full Interactive Preview
-            </Link>
+            <div className="mt-4 space-y-3">
+              <button
+                onClick={handleSaveSurvey}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                Save Survey
+              </button>
+              <Link
+                to="/preview"
+                className="block w-full px-4 py-2 text-center bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Preview Survey
+              </Link>
+            </div>
           </div>
 
-          {/* Right Column: "Design" Preview (read-only or partial) */}
+          {/* Right Column: Preview */}
           <div
             className="rounded p-6 shadow"
             style={{ backgroundColor: frameColor }}
@@ -447,86 +370,81 @@ const SurveyBuilder = () => {
             <h2 className="text-xl font-bold text-gray-700 mb-4">
               Design Preview
             </h2>
-            <h3 className="text-2xl font-semibold text-gray-800">
-              {title || "Survey Title"}
-            </h3>
-            <p className="text-gray-700 mt-2">
-              {description || "Survey description here..."}
-            </p>
-            
+            <div className="space-y-6">
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
+                <p className="text-gray-600 mt-2">{description}</p>
+              </div>
 
-            {/* List questions in a read-only style */}
-            <div className="mt-6 space-y-4">
               {questions.map((q, i) => (
-                <div key={i} className="bg-white p-4 rounded border shadow-sm">
+                <div key={i} className="bg-white p-4 rounded shadow-sm">
                   <p className="font-medium text-gray-800">
-                    {q.text || "Untitled Question"}
+                    {q.text || "New Question"}
                     {q.required && <span className="text-red-500 ml-1">*</span>}
                   </p>
 
                   {q.type === "shortAnswer" && (
                     <input
                       type="text"
-                      className="mt-2 w-full p-2 border rounded"
+                      className="w-full p-2 mt-2 border rounded"
                       placeholder="Short answer..."
                       disabled
                     />
                   )}
+
                   {q.type === "paragraph" && (
                     <textarea
-                      className="mt-2 w-full p-2 border rounded"
+                      className="w-full p-2 mt-2 border rounded"
                       placeholder="Long answer..."
                       rows={3}
                       disabled
                     />
                   )}
+
                   {q.type === "multipleChoice" && (
                     <div className="mt-2 space-y-2">
                       {q.options.map((opt, idx) => (
-                        <label
-                          key={idx}
-                          className="flex items-center text-gray-700"
-                        >
+                        <label key={idx} className="flex items-center gap-2">
                           <input
                             type="radio"
-                            className="mr-2"
                             disabled
                             style={{ accentColor: answerColor }}
                           />
-                          <span>{opt || "Option"}</span>
+                          <span>{opt || `Option ${idx + 1}`}</span>
                         </label>
                       ))}
                     </div>
                   )}
+
                   {q.type === "checkboxes" && (
                     <div className="mt-2 space-y-2">
                       {q.options.map((opt, idx) => (
-                        <label
-                          key={idx}
-                          className="flex items-center text-gray-700"
-                        >
+                        <label key={idx} className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            className="mr-2"
                             disabled
                             style={{ accentColor: answerColor }}
                           />
-                          <span>{opt || "Option"}</span>
+                          <span>{opt || `Option ${idx + 1}`}</span>
                         </label>
                       ))}
                     </div>
                   )}
+
                   {q.type === "dropdown" && (
-                    <select className="mt-2 p-2 border rounded w-full" disabled>
-                      <option>-- Select an option --</option>
+                    <select className="w-full p-2 mt-2 border rounded" disabled>
+                      <option>Select an option</option>
                       {q.options.map((opt, idx) => (
-                        <option key={idx}>{opt || "Option"}</option>
+                        <option key={idx}>{opt || `Option ${idx + 1}`}</option>
                       ))}
                     </select>
                   )}
+
                   {q.type === "rating" && (
-                    <div className="mt-2 text-gray-400">
-                      ⭐ ⭐ ⭐ ⭐ ⭐ (Preview - disabled)
+                    <div className="mt-2 flex gap-1 text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <StarIcon key={i} className="h-6 w-6" />
+                      ))}
                     </div>
                   )}
                 </div>
