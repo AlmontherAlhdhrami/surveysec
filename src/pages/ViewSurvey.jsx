@@ -24,6 +24,7 @@ const ViewSurvey = () => {
   const [survey, setSurvey] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
@@ -75,11 +76,34 @@ const ViewSurvey = () => {
 
   const handleChange = (qIndex, value) => {
     setAnswers((prev) => ({ ...prev, [qIndex]: value }));
+    setErrors((prev) => ({ ...prev, [qIndex]: "" })); // Clear error when user inputs
+  };
+
+  // **Validation before submission**
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = {};
+
+    questions.forEach((q, index) => {
+      if (q.is_required && (!answers[index] || answers[index].length === 0)) {
+        newErrors[index] = "This question is required.";
+        isValid = false;
+      }
+    });
+
+    setErrors(newErrors);
+    return isValid;
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      alert("Please fill in all required fields before submitting.");
+      return;
+    }
+
     if (!surveyId) {
       alert("No survey ID found!");
       return;
@@ -141,7 +165,6 @@ const ViewSurvey = () => {
                 {q.is_required && <span className="text-red-500 ml-1">*</span>}
               </label>
 
-              {/* Handle all question types */}
               {q.question_type === "shortAnswer" && (
                 <input
                   type="text"
@@ -208,7 +231,6 @@ const ViewSurvey = () => {
                 </select>
               )}
 
-              {/* ⭐ Star Rating Type */}
               {q.question_type === "rating" && (
                 <StarRating
                   value={answers[qIndex] || 0}
@@ -216,6 +238,8 @@ const ViewSurvey = () => {
                   maxStars={5}
                 />
               )}
+
+              {errors[qIndex] && <p className="text-red-500 text-sm">{errors[qIndex]}</p>}
             </div>
           ))}
 

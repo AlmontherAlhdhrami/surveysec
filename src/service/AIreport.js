@@ -13,7 +13,7 @@ const ANALYSIS_CONFIG = {
   }
 };
 
-// Data Validation Core
+// ** Data Validation Core **
 const validateQuestionData = (question, answers) => {
   const filteredAnswers = answers.filter(a => a.question_id === question.id);
   const numericalValues = filteredAnswers
@@ -54,29 +54,34 @@ const validateQuestionData = (question, answers) => {
   };
 };
 
-// Enhanced Statistical Functions
+// ** Statistical Tests & Analysis **
 const performChiSquareTest = (question, answers) => {
   try {
     const validation = validateQuestionData(question, answers);
-    if (!validation.isValid) {
-      return { error: validation.errors };
-    }
+    if (!validation.isValid) return { error: validation.errors };
 
-    const observedFrequencies = validation.filteredAnswers
-      .reduce((acc, { answer_value }) => {
-        acc[answer_value] = (acc[answer_value] || 0) + 1;
-        return acc;
-      }, {});
+    const observedFrequencies = validation.filteredAnswers.reduce((acc, { answer_value }) => {
+      acc[answer_value] = (acc[answer_value] || 0) + 1;
+      return acc;
+    }, {});
 
     const observed = Object.values(observedFrequencies);
-    if (observed.length < ANALYSIS_CONFIG.MIN_CATEGORIES) {
-      return { error: ["Insufficient response categories"] };
-    }
+    if (observed.length < ANALYSIS_CONFIG.MIN_CATEGORIES) return { error: ["Insufficient response categories"] };
 
-    // ... rest of original chi-square implementation ...
+    // Expected frequencies assuming uniform distribution
+    const total = observed.reduce((sum, val) => sum + val, 0);
+    const expected = Array(observed.length).fill(total / observed.length);
 
+    // Calculate Chi-Square
+    const chiSquareValue = observed.reduce((sum, obs, i) => sum + ((obs - expected[i]) ** 2) / expected[i], 0);
+    const degreesOfFreedom = observed.length - 1;
+    
+    return {
+      chiSquareValue,
+      degreesOfFreedom,
+      significant: chiSquareValue > 3.84, // Critical Value at p=0.05, df=1
+    };
   } catch (error) {
-    console.error("Chi-Square Error:", error);
     return { error: ["Statistical calculation failed"] };
   }
 };
@@ -84,33 +89,63 @@ const performChiSquareTest = (question, answers) => {
 const performLinearRegression = (question, answers) => {
   try {
     const validation = validateQuestionData(question, answers);
-    if (!validation.isValid) {
-      return { error: validation.errors };
-    }
+    if (!validation.isValid) return { error: validation.errors };
 
-    // ... rest of original regression implementation ...
+    const dataPoints = validation.filteredAnswers.map((a, index) => [index + 1, Number(a.answer_value)]);
+    const regression = linearRegression(dataPoints);
+    const predict = linearRegressionLine(regression);
 
+    return {
+      slope: regression.m,
+      intercept: regression.b,
+      rSquared: calculateRSquared(dataPoints, predict),
+      equation: `y = ${regression.m.toFixed(2)}x + ${regression.b.toFixed(2)}`
+    };
   } catch (error) {
-    console.error("Regression Error:", error);
     return { error: ["Regression analysis failed"] };
   }
 };
 
-// AI Report Generator
-export const generateAdvancedAIReport = async (questions, answers) => {
+const performCorrelation = (question, answers) => {
   try {
-    // Input Validation
+    const validation = validateQuestionData(question, answers);
+    if (!validation.isValid) return { error: validation.errors };
+
+    const x = validation.filteredAnswers.map((_, i) => i + 1);
+    const y = validation.numericalValues;
+    const correlationValue = sampleCorrelation(x, y);
+
+    return {
+      correlationValue,
+      strength: Math.abs(correlationValue) > ANALYSIS_CONFIG.CORRELATION_THRESHOLDS.STRONG
+        ? "Strong"
+        : Math.abs(correlationValue) > ANALYSIS_CONFIG.CORRELATION_THRESHOLDS.MODERATE
+        ? "Moderate"
+        : "Weak",
+      interpretation: correlationValue > 0 ? "Positive" : "Negative"
+    };
+  } catch (error) {
+    return { error: ["Correlation analysis failed"] };
+  }
+};
+
+// ** AI Report Generator **
+export const generateAdvancedAIReport = async (questions, answers, setState) => {
+  try {
+    console.log("🟢 Generating AI report...");
+
     if (!Array.isArray(questions) || !Array.isArray(answers)) {
-      throw new Error("Invalid input data structures");
+      console.error("❌ Invalid input data:", { questions, answers });
+      throw new Error("Invalid input data");
     }
 
-    // Data Preparation
-    const analysisResults = questions.map(question => {
+    const analysisResults = questions.map((question, index) => {
+
       const validation = validateQuestionData(question, answers);
       const analyses = validation.isValid ? {
         chiSquare: performChiSquareTest(question, answers),
         regression: performLinearRegression(question, answers),
-        correlation: performCorrelation(answers, question.id),
+        correlation: performCorrelation(question, answers),
         summaryStats: calculateSummaryStatistics(validation.numericalValues)
       } : null;
 
@@ -122,72 +157,59 @@ export const generateAdvancedAIReport = async (questions, answers) => {
       };
     });
 
-    // Quality Metrics
     const validResults = analysisResults.filter(r => r.validation.isValid);
-    const qualityScore = validResults.length > 0 
-      ? validResults.reduce((sum, r) => sum + r.validation.qualityScore, 0) / validResults.length
-      : 0;
 
-    // AI Prompt Construction
-    const promptSections = analysisResults.map((result, index) => {
-      if (!result.validation.isValid) {
-        return `[INVALID] Question ${index + 1}: ${result.questionText}\n` +
-               `- Issues: ${result.validation.errors.join(", ")}\n` +
-               `- Quality Score: ${result.validation.qualityScore}%`;
-      }
-
-      return `[VALID] Question ${index + 1}: ${result.questionText}\n` +
-             `- Responses: ${result.validation.filteredAnswers.length}\n` +
-             `- Mean: ${result.analyses.summaryStats.mean?.toFixed(2) || 'N/A'}\n` +
-             `- Correlation: ${result.analyses.correlation?.correlationValue?.toFixed(2) || 'N/A'}\n` +
-             `- Significance: ${result.analyses.chiSquare?.significant ? 'Yes' : 'No'}\n` +
-             `- Quality Score: ${result.validation.qualityScore}%`;
-    });
-
-    const fullPrompt = `As a senior data analyst, create a report with:
-1. Executive Summary
-2. Data Quality Assessment
-3. Statistical Insights
-4. Recommendations
-5. Validation Summary
-
-Dataset Quality: ${qualityScore.toFixed(1)}%
-Analysis Data:\n${promptSections.join("\n\n")}`;
-
-    // AI Analysis
-    const aiResponse = await AIChatSession.sendMessage(fullPrompt);
-    
-    if (!aiResponse?.response?.text?.trim()) {
-      throw new Error("AI service returned empty response");
+    if (validResults.length === 0) {
+      console.warn("⚠️ No valid questions found. AI report may be empty.");
     }
 
-    // Final Output Structure
+    const promptSections = analysisResults.map((result, index) => {
+      if (!result.validation.isValid) {
+        return `❌ Question ${index + 1}: ${result.questionText}\nIssues: ${result.validation.errors.join(", ")}\nQuality Score: ${result.validation.qualityScore}%`;
+      }
+
+      return `✅ Question ${index + 1}: ${result.questionText}\nResponses: ${result.validation.filteredAnswers.length}\nMean: ${result.analyses.summaryStats.mean?.toFixed(2) || 'N/A'}\nCorrelation: ${result.analyses.correlation?.correlationValue?.toFixed(2) || 'N/A'}\nSignificance: ${result.analyses.chiSquare?.significant ? 'Yes' : 'No'}\nQuality Score: ${result.validation.qualityScore}%`;
+    });
+
+    const fullPrompt = `**Survey Analysis Report**\n\n📌 **Executive Summary**\n1. Dataset Quality: ${validResults.length}/${questions.length} valid questions\n2. Key Trends and Patterns Identified\n\n📊 **Statistical Insights**\n${promptSections.join("\n\n")}\n\n📢 **Recommendations**\n1. Improve survey structure for better data collection.\n2. Optimize question clarity to reduce inconsistencies.\n3. Further analyze trends using predictive modeling.`;
+
+
+    const aiResponse = await AIChatSession.sendMessage(fullPrompt);
+    let responseText = "⚠️ AI response is empty.";
+
+    if (aiResponse?.response) {
+      try {
+        responseText = typeof aiResponse.response.text === "function"
+          ? aiResponse.response.text()
+          : aiResponse.response.text || "⚠️ AI service returned an empty response.";
+      } catch (error) {
+        console.error("❌ Failed to extract AI response text:", error);
+      }
+    } else {
+      console.error("❌ AI Service returned an invalid response:", aiResponse);
+    }
+
+
+    // ✅ Update state with AI report
+    setState(prev => ({
+      ...prev,
+      aiReport: responseText.trim() || "⚠️ No AI report available."
+    }));
+
     return {
-      aiReport: aiResponse.response.text,
-      metadata: {
-        generatedAt: new Date().toISOString(),
-        totalQuestions: questions.length,
-        validQuestions: validResults.length,
-        qualityScore: qualityScore.toFixed(1),
-        warnings: analysisResults.filter(r => !r.validation.isValid).map(r => ({
-          question: r.questionText,
-          issues: r.validation.errors
-        }))
-      },
-      analysisData: analysisResults
+      aiReport: responseText
     };
 
   } catch (error) {
-    console.error("Report Generation Failed:", error);
+    console.error("❌ Report Generation Failed:", error.message);
+
+    setState(prev => ({
+      ...prev,
+      aiReport: `⚠️ Analysis unavailable: ${error.message}`
+    }));
+
     return {
-      aiReport: `Analysis unavailable: ${error.message}\n\nCommon Solutions:\n` +
-                "1. Verify all questions have >10 responses\n" +
-                "2. Ensure numerical questions receive valid numbers\n" +
-                "3. Check API service availability",
-      metadata: {
-        error: true,
-        errorDetails: error.message
-      }
+      aiReport: `⚠️ Analysis unavailable: ${error.message}`
     };
   }
 };

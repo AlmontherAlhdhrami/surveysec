@@ -113,7 +113,7 @@ const SurveyAnalysisPage = () => {
 
   const processSurveyData = useCallback(async (surveyId) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
-    
+
     try {
       // Fetch questions
       const { data: questions, error: qError } = await supabase
@@ -133,18 +133,9 @@ const SurveyAnalysisPage = () => {
       if (aError) throw new Error(aError.message);
 
       // Generate AI Report
-      let aiText = "Analyzing responses...";
-      let analysisResult = [];
-      try {
-        const report = await generateAdvancedAIReport(questions, answers);
-        aiText = typeof report?.aiText === 'string' ? report.aiText : "Analysis unavailable";
-        analysisResult = Array.isArray(report?.analysisResult) ? report.analysisResult : [];
-      } catch (aiError) {
-        console.error("AI Analysis error:", aiError);
-        aiText = "AI insights temporarily unavailable";
-      }
+      const report = await generateAdvancedAIReport(questions, answers, setState);
 
-      // Process questions
+      // ✅ Ensure numerical statistics are properly calculated
       const processedQuestions = questions.map(question => {
         const qAnswers = answers.filter(a => a.question_id === question.id);
         const numericValues = qAnswers
@@ -155,7 +146,7 @@ const SurveyAnalysisPage = () => {
           ...question,
           answers: qAnswers,
           isNumerical: numericValues.length > 0,
-          stats: calculateSummaryStatistics(numericValues),
+          stats: calculateSummaryStatistics(numericValues),  // ✅ Ensure stats exist for charts
           tests: numericValues.length > 0 
             ? calculateNumericalTests(numericValues)
             : calculateCategoricalTests(qAnswers)
@@ -166,8 +157,8 @@ const SurveyAnalysisPage = () => {
         ...prev,
         questions: processedQuestions,
         answers,
-        statsResults: analysisResult,
-        aiReport: aiText,
+        statsResults: report?.analysisResult || [],
+        aiReport: report?.aiReport || "⚠️ No AI report available.",
         loading: false
       }));
 
@@ -176,10 +167,12 @@ const SurveyAnalysisPage = () => {
         ...prev,
         error: error.message,
         loading: false,
-        aiReport: "Error generating report: " + error.message
+        aiReport: "⚠️ AI report generation failed."
       }));
     }
-  }, []);
+}, []);
+
+
 
   const calculateSummaryStatistics = (values) => {
     if (!values?.length) return {};
@@ -372,57 +365,121 @@ const SurveyAnalysisPage = () => {
   );
 
   const renderProfessionalReport = () => {
-    const reportContent = String(state.aiReport || '');
+    if (!state.aiReport || state.aiReport.trim() === "⚠️ No AI report available.") {
+        return (
+            <div className="bg-yellow-50 p-6 rounded-xl shadow text-yellow-700 mb-8">
+                <h3 className="text-xl font-semibold mb-4">⚠️ AI Report Not Available</h3>
+                <p>Ensure the survey has enough responses to generate meaningful insights.</p>
+            </div>
+        );
+    }
+   
+    const reportContent = String(state.aiReport);
     const reportLines = reportContent.split('\n').filter(line => line.trim());
 
     return (
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h3 className="text-xl font-semibold mb-4">Professional Analysis Report</h3>
-        <div className="prose max-w-none">
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold mb-2">Executive Summary</h4>
-            <p className="text-gray-600">
-              {reportLines[0] || 'No summary available'}
-            </p>
-          </div>
-
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold mb-2">Question Analysis</h4>
-            {state.statsResults?.map((result, index) => (
-              <div key={index} className="mb-4 p-4 bg-gray-50 rounded">
-                <h5 className="font-medium mb-2">
-                  {result.question || `Question ${index + 1}`}
-                </h5>
-                <ul className="list-disc pl-6">
-                  <li>Statistical Significance: {result.chiSquare?.significant ? 'Yes' : 'No'}</li>
-                  <li>Correlation Strength: {result.correlation?.correlationValue?.toFixed(2) || 'N/A'}</li>
-                  <li>Trend Slope: {result.regression?.slope?.toFixed(2) || 'N/A'}</li>
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold mb-2">Key Insights</h4>
-            <div className="space-y-2">
-              {reportLines.slice(1, -1).map((line, index) => (
-                <p key={index} className="text-gray-600">{line}</p>
-              ))}
+        <div className="bg-white p-8 rounded-2xl shadow-lg mb-8 border border-gray-100">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+                <div className="bg-blue-100 p-3 rounded-lg">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Survey Analysis Report</h2>
             </div>
-          </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <h4 className="text-lg font-semibold mb-2">Recommendations</h4>
-            <ul className="list-disc pl-6 text-gray-600">
-              {reportLines.filter(line => line.startsWith('Recommendation:')).map((rec, i) => (
-                <li key={i}>{rec.replace('Recommendation: ', '')}</li>
-              ))}
-            </ul>
+            {/* Executive Summary */}
+            <div className="bg-blue-50 p-6 rounded-xl mb-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-4">📌 Executive Summary</h3>
+                <p className="text-gray-600">
+                    {reportLines.length > 0 ? reportLines[0] : 'No summary available'}
+                </p>
+            </div>
+
+            {/* Key Findings */}
+            <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Key Findings
+                </h3>
+
+                {state.questions.map((question, index) => (
+                    <div key={question.id} className="bg-gray-50 p-5 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-700">Question {index + 1}</h4>
+                            <span className="text-sm px-2 py-1 rounded bg-white text-gray-600">
+                                {question.isNumerical ? 'Numerical' : 'Multiple Choice'}
+                            </span>
+                        </div>
+                        <p className="text-gray-600 mb-4">{question.question_text}</p>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="bg-white p-3 rounded">
+                                <p className="text-gray-500">Responses</p>
+                                <p className="font-semibold">{question.answers?.length || 0}</p>
+                            </div>
+                            <div className="bg-white p-3 rounded">
+                                <p className="text-gray-500">Most Common</p>
+                                <p className="font-semibold">
+                                    {question.isNumerical ? 
+                                        question.stats?.mean?.toFixed(2) :
+                                        Object.entries(question.tests?.frequencyDistribution || {}).sort((a,b) => b[1]-a[1])[0]?.[0] || 'N/A'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+           {/* Recommendations Section */}
+<div className="bg-green-50 p-6 rounded-xl">
+  <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+    </svg>
+    Action Plan & Recommendations
+  </h3>
+
+  {/* Ensure recommendations are displayed */}
+  <div className="space-y-4">
+    {reportLines
+      .filter(line => line.startsWith('1.') || line.startsWith('2.') || line.startsWith('3.'))
+      .map((rec, i) => (
+        <div key={i} className="flex items-start gap-3 bg-white p-4 rounded-lg">
+          <div className="flex-shrink-0 mt-1 text-green-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
+          <p className="text-gray-600">{rec}</p>
         </div>
-      </div>
+      ))}
+
+    {/* If no recommendations found, display a fallback message */}
+    {reportLines.filter(line => line.startsWith('1.') || line.startsWith('2.') || line.startsWith('3.')).length === 0 && (
+      <p className="text-gray-600 italic">No recommendations generated. Ensure the survey has enough responses for insights.</p>
+    )}
+  </div>
+</div>
+
+
+            {/* Full Report */}
+            <div className="bg-gray-100 p-6 rounded-xl mt-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">📜 Full Report</h3>
+                <div className="text-gray-700 space-y-2">
+                    {reportLines.map((line, index) => (
+                        <p key={index}>{line}</p>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
-  };
+};
+
 
   return (
     <ErrorBoundary>
