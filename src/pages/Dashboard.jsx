@@ -182,7 +182,7 @@ const Dashboard = () => {
           {surveys.map((survey) => (
             <div
               key={survey.id}
-              className="h-48 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 flex flex-col"
+              className="h-48 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-xl shadow-sm hover:shadow-md transition-all border border-purple-700 flex flex-col"
             >
               <div className="p-6 flex-1 flex flex-col">
                 <div className="flex items-start justify-between mb-4">
@@ -192,10 +192,10 @@ const Dashboard = () => {
                   </span>
                 </div>
                 
-                <h3 className="text-lg font-semibold text-gray-800 truncate mb-2">
+                <h3 className="text-lg font-semibold text-white truncate mb-2">
                   {survey.title}
                 </h3>
-                <p className="text-sm text-gray-500 mb-auto">
+                <p className="text-sm text-white mb-auto">
                   Created: {new Date(survey.created_at).toLocaleDateString()}
                 </p>
 
@@ -204,14 +204,14 @@ const Dashboard = () => {
                   <div className="flex space-x-4">
                     <Link
                       to={`/builder/${survey.id}`}
-                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      className="text-white hover:text-indigo-600 transition-colors"
                       title="Edit"
                     >
                       <PencilIcon className="h-5 w-5" />
                     </Link>
                     <Link
                       to={`/view/${survey.id}`}
-                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      className="text-white hover:text-indigo-600 transition-colors"
                       title="Preview"
                     >
                       <EyeIcon className="h-5 w-5" />
@@ -219,7 +219,7 @@ const Dashboard = () => {
                   </div>
                   <button
                     onClick={() => handleDelete(survey.id)}
-                    className="text-gray-400 hover:text-red-600 transition-colors"
+                    className="text-white hover:text-red-600 transition-colors"
                     title="Delete"
                   >
                     <TrashIcon className="h-5 w-5" />
