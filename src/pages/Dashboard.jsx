@@ -8,7 +8,8 @@ import {
   PencilIcon,
   EyeIcon,
   TrashIcon,
-  ChartBarIcon
+  PresentationChartBarIcon
+
 } from "@heroicons/react/24/outline";
 
 const Dashboard = () => {
@@ -141,7 +142,7 @@ const Dashboard = () => {
             onClick={handlePlusClick}
             className="group h-48 bg-white/50 hover:bg-white border-2 border-dashed border-gray-300 hover:border-indigo-300 rounded-xl cursor-pointer transition-all flex flex-col items-center justify-center"
           >
-            <PlusIcon className="h-10 w-10 text-gray-400 group-hover:text-indigo-500 mb-3 transition-colors" />
+            <PresentationChartBarIcon className="h-30 w-30 text-gray-400 group-hover:text-indigo-500 mb-3 transition-colors" />
             <p className="text-gray-500 group-hover:text-indigo-600 font-medium transition-colors">
               Create New Survey
             </p>
@@ -186,7 +187,7 @@ const Dashboard = () => {
             >
               <div className="p-6 flex-1 flex flex-col">
                 <div className="flex items-start justify-between mb-4">
-                  <ChartBarIcon className="h-6 w-6 text-indigo-600" />
+                  <PresentationChartBarIcon className="h-12 w-12 text-indigo-600" />
                   <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
                     {survey.status || "Draft"}
                   </span>
