@@ -280,7 +280,7 @@ const ParagraphInput = ({ value, onChange }) => (
 const MultipleChoiceInput = ({ question, value, onChange }) => (
   <div className="space-y-2">
     {question.options.map((opt) => (
-      <label key={opt} className="flex items-center space-x-3">
+      <label key={opt} className="inline-grid grid-cols-3 items-center space-x-3">
         <input
           type="radio"
           name={`radio-${question.id}`}
@@ -297,7 +297,7 @@ const MultipleChoiceInput = ({ question, value, onChange }) => (
 const CheckboxInput = ({ question, value = [], onChange }) => (
   <div className="space-y-2">
     {question.options.map((opt) => (
-      <label key={opt} className="flex items-center space-x-3">
+      <label key={opt} className="inline-grid grid-cols-3 items-center space-x-3">
         <input
           type="checkbox"
           className="h-5 w-5 text-indigo-600"

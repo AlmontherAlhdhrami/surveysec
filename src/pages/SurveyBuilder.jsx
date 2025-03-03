@@ -9,6 +9,8 @@ import {
   StarIcon
 } from "@heroicons/react/24/outline";
 import { SwatchIcon } from "@heroicons/react/24/solid";
+import { useSurveyHelper } from "../utils/sureveyhepler";
+
 
 const SurveyBuilder = () => {
   const { surveyId } = useParams();
@@ -28,6 +30,17 @@ const SurveyBuilder = () => {
     answerColor,
     setAnswerColor,
   } = useSurveyContext();
+  const {
+    addQuestion,
+    updateQuestionText,
+    updateQuestionType,
+    toggleRequired,
+    updateOption,
+    addOption,
+    removeOption,
+    removeQuestion,
+    handleSaveSurvey,
+  } = useSurveyHelper();
 
   // Existing useEffect and data fetching logic remains the same
   useEffect(() => {
@@ -36,6 +49,7 @@ const SurveyBuilder = () => {
     }
   }, [surveyId]);
 
+  
   const fetchSurveyFromDB = async (id) => {
     try {
       const { data: survey, error: surveyError } = await supabase
@@ -70,114 +84,10 @@ const SurveyBuilder = () => {
       alert("Failed to load survey data");
     }
   };
-
-  // All question handling functions remain the same
-  const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      { text: "", type: "shortAnswer", options: [], required: false },
-    ]);
-  };
-
-  const updateQuestionText = (index, value) => {
-    const updated = [...questions];
-    updated[index].text = value;
-    setQuestions(updated);
-  };
-
-  const updateQuestionType = (index, value) => {
-    const updated = [...questions];
-    updated[index].type = value;
-    updated[index].options = ["multipleChoice", "checkboxes", "dropdown"].includes(value)
-      ? [""]
-      : [];
-    setQuestions(updated);
-  };
-
-  const toggleRequired = (index) => {
-    const updated = [...questions];
-    updated[index].required = !updated[index].required;
-    setQuestions(updated);
-  };
-
-  const updateOption = (qIndex, oIndex, value) => {
-    const updated = [...questions];
-    updated[qIndex].options[oIndex] = value;
-    setQuestions(updated);
-  };
-
-  const addOption = (qIndex) => {
-    const updated = [...questions];
-    updated[qIndex].options.push("");
-    setQuestions(updated);
-  };
-
-  const removeOption = (qIndex, oIndex) => {
-    const updated = [...questions];
-    updated[qIndex].options.splice(oIndex, 1);
-    setQuestions(updated);
-  };
-
-  const removeQuestion = (qIndex) => {
-    const updated = questions.filter((_, idx) => idx !== qIndex);
-    setQuestions(updated);
-  };
-
-  const handleSaveSurvey = async () => {
-    try {
-      let finalSurveyId = surveyDBId;
-
-      if (!finalSurveyId) {
-        const { data: newSurvey, error: surveyError } = await supabase
-          .from("surveys")
-          .insert({ title, description })
-          .select()
-          .single();
-
-        if (surveyError) throw surveyError;
-        finalSurveyId = newSurvey.id;
-        setSurveyDBId(newSurvey.id);
-      } else {
-        const { error: updateError } = await supabase
-          .from("surveys")
-          .update({ title, description })
-          .eq("id", finalSurveyId);
-        if (updateError) throw updateError;
-      }
-
-      for (const q of questions) {
-        if (q.id) {
-          await supabase
-            .from("questions")
-            .update({
-              question_text: q.text,
-              question_type: q.type,
-              is_required: q.required,
-              options: q.options,
-            })
-            .eq("id", q.id);
-        } else {
-          await supabase.from("questions").insert({
-            survey_id: finalSurveyId,
-            question_text: q.text,
-            question_type: q.type,
-            is_required: q.required,
-            options: q.options,
-          });
-        }
-      }
-
-      alert("Survey saved successfully!");
-    } catch (err) {
-      console.error("Save error:", err);
-      alert("Error saving survey");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow py-6 mb-8">
-        <h1 className="text-3xl font-bold text-indigo-700 text-center">
+      <header className="bg-gradient-to-r from-indigo-600 to-purple-700 shadow-sm py-20 mb-20">
+        <h1 className="text-3xl font-bold text-white text-center py-10 ">
           Survey Builder
         </h1>
       </header>
@@ -228,17 +138,7 @@ const SurveyBuilder = () => {
                   className="w-full h-10 rounded cursor-pointer"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Button Color
-                </label>
-                <input
-                  type="color"
-                  value={buttonColor}
-                  onChange={(e) => setButtonColor(e.target.value)}
-                  className="w-full h-10 rounded cursor-pointer"
-                />
-              </div>
+            
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Answer Color
@@ -404,7 +304,7 @@ const SurveyBuilder = () => {
                   {q.type === "multipleChoice" && (
                     <div className="mt-2 space-y-2">
                       {q.options.map((opt, idx) => (
-                        <label key={idx} className="flex items-center gap-2">
+                        <label key={idx} className="inline-grid grid-cols-3 items-center gap-2">
                           <input
                             type="radio"
                             disabled
@@ -419,7 +319,7 @@ const SurveyBuilder = () => {
                   {q.type === "checkboxes" && (
                     <div className="mt-2 space-y-2">
                       {q.options.map((opt, idx) => (
-                        <label key={idx} className="flex items-center gap-2">
+                        <label key={idx} className="inline-grid grid-cols-3 items-center gap-2">
                           <input
                             type="checkbox"
                             disabled

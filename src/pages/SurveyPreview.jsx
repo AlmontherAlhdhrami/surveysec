@@ -190,7 +190,7 @@ const SurveyPreview = () => {
                       {q.options.map((opt, oIndex) => (
                         <label
                           key={oIndex}
-                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-grid grid-cols-3  items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           <input
                             type={q.question_type === "multipleChoice" ? "radio" : "checkbox"}
