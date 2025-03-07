@@ -12,15 +12,25 @@ export const useSurveyHelper = () => {
     setDescription,
     questions,
     setQuestions,
+    frameColor,
+    answerColor
   } = useSurveyContext();
 
   // Function to add a new question
-  const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      { text: "", type: "shortAnswer", options: [], required: false },
-    ]);
-  };
+  // Function to add a new question
+const addQuestion = () => {
+  setQuestions([
+    ...questions,
+    { 
+      text: "", 
+      type: "shortAnswer", 
+      options: [], 
+      required: false,
+      rows: [], // 🛠 Ensure rows exist
+      columns: [] // 🛠 Ensure columns exist
+    },
+  ]);
+};
 
   // Function to update question text
   const updateQuestionText = (index, value) => {
@@ -33,12 +43,23 @@ export const useSurveyHelper = () => {
   const updateQuestionType = (index, value) => {
     const updated = [...questions];
     updated[index].type = value;
+    
+    // Original options reset logic
     updated[index].options = ["multipleChoice", "checkboxes", "dropdown"].includes(value)
       ? [""]
       : [];
+  
+    // New grid type handling
+    if (["multipleChoiceGrid", "checkboxGrid"].includes(value)) {
+      updated[index].rows = [];  // Initialize empty rows array
+      updated[index].columns = [];  // Initialize empty columns array
+    } else {
+      updated[index].rows = undefined;  // Clear rows for non-grid types
+      updated[index].columns = undefined;  // Clear columns for non-grid types
+    }
+  
     setQuestions(updated);
   };
-
   // Function to toggle the required field of a question
   const toggleRequired = (index) => {
     const updated = [...questions];
@@ -73,62 +94,125 @@ export const useSurveyHelper = () => {
     setQuestions(updated);
   };
 
-  // Function to handle survey saving (create or update)
+  // Function to update grid rows
+  const addRow = (qIndex) => {
+    const updated = [...questions];
+    updated[qIndex].rows.push("");
+    setQuestions(updated);
+  };
+  
+  const updateRow = (qIndex, rIndex, value) => {
+    const updated = [...questions];
+    updated[qIndex].rows[rIndex] = value;
+    setQuestions(updated);
+  };
+  
+  const removeRow = (qIndex, rIndex) => {
+    const updated = [...questions];
+    updated[qIndex].rows.splice(rIndex, 1);
+    setQuestions(updated);
+  };
+  
+  const addColumn = (qIndex) => {
+    const updated = [...questions];
+    updated[qIndex].columns.push("");
+    setQuestions(updated);
+  };
+  
+  const updateColumn = (qIndex, cIndex, value) => {
+    const updated = [...questions];
+    updated[qIndex].columns[cIndex] = value;
+    setQuestions(updated);
+  };
+  
+  const removeColumn = (qIndex, cIndex) => {
+    const updated = [...questions];
+    updated[qIndex].columns.splice(cIndex, 1);
+    setQuestions(updated);
+  };
+  
   const handleSaveSurvey = async () => {
     try {
       let finalSurveyId = surveyDBId;
-
+  
+      // 1. Handle Survey Creation/Update
       if (!finalSurveyId) {
-        // Insert new survey
         const { data: newSurvey, error: surveyError } = await supabase
           .from("surveys")
-          .insert({ title, description })
+          .insert({ 
+            title, 
+            description,
+            frame_color: frameColor, // Add if you have color settings
+            answer_color: answerColor
+          })
           .select()
           .single();
-
+  
         if (surveyError) throw surveyError;
         finalSurveyId = newSurvey.id;
         setSurveyDBId(newSurvey.id);
       } else {
-        // Update existing survey
         const { error: updateError } = await supabase
           .from("surveys")
-          .update({ title, description })
+          .update({ 
+            title, 
+            description,
+            frame_color: frameColor,
+            answer_color: answerColor
+          })
           .eq("id", finalSurveyId);
-
+  
         if (updateError) throw updateError;
       }
-
-      // Insert or update questions
-      for (const q of questions) {
-        if (q.id) {
-          await supabase
-            .from("questions")
-            .update({
-              question_text: q.text,
-              question_type: q.type,
-              is_required: q.required,
-              options: q.options,
-            })
-            .eq("id", q.id);
-        } else {
-          await supabase.from("questions").insert({
+  
+      // 2. Handle Questions with Proper ID Management
+      const updatedQuestions = await Promise.all(
+        questions.map(async (q) => {
+          const questionData = {
             survey_id: finalSurveyId,
             question_text: q.text,
             question_type: q.type,
             is_required: q.required,
-            options: q.options,
-          });
-        }
-      }
-
+            options: JSON.stringify(q.options || []),
+            rows: JSON.stringify(q.rows || []),
+            columns: JSON.stringify(q.columns || [])
+          };
+  
+          // Update existing question
+          if (q.id) {
+            const { error } = await supabase
+              .from("questions")
+              .update(questionData)
+              .eq("id", q.id);
+  
+            if (error) throw error;
+            return q;
+          }
+  
+          // Create new question and get ID
+          const { data: newQuestion, error } = await supabase
+            .from("questions")
+            .insert(questionData)
+            .select()
+            .single();
+  
+          if (error) throw error;
+          return { ...q, id: newQuestion.id }; // Critical: Store new ID
+        })
+      );
+  
+      // 3. Update Local State with New IDs
+      setQuestions(updatedQuestions);
+  
       alert("Survey saved successfully!");
     } catch (err) {
       console.error("Save error:", err);
-      alert("Error saving survey");
+      alert(`Error saving survey: ${err.message}`);
     }
   };
+  
 
+  
   return {
     addQuestion,
     updateQuestionText,
@@ -139,5 +223,12 @@ export const useSurveyHelper = () => {
     removeOption,
     removeQuestion,
     handleSaveSurvey,
+    addRow,
+    updateRow,
+    removeRow,
+    addColumn,
+    updateColumn,
+    removeColumn
+
   };
 };

@@ -33,14 +33,41 @@ const SurveyPreview = () => {
         .select("*")
         .eq("survey_id", surveyDBId)
         .order("created_at", { ascending: true });
-
+  
       if (error) throw error;
-      setQuestions([...new Map(data.map((q) => [q.id, q])).values()]);
+  
+      // Convert rows & columns from JSON string to array
+      const processedQuestions = data.map(q => ({
+        ...q,
+        options: parseSurveyField(q.options),
+        rows: parseSurveyField(q.rows),
+        columns: parseSurveyField(q.columns)
+      }));
+  
+      setQuestions(processedQuestions);
     } catch (err) {
       console.error("Error fetching questions:", err);
     }
   };
-
+  
+  // Add this utility function to both SurveyBuilder and SurveyPreview
+const parseSurveyField = (value) => {
+  // If value is already an array, return it
+  if (Array.isArray(value)) return value;
+  
+  try {
+    // Try to parse as JSON first
+    return JSON.parse(value);
+  } catch (jsonError) {
+    try {
+      // Fallback to CSV parsing
+      return value.split(',').map(item => item.trim());
+    } catch (csvError) {
+      console.warn('Failed to parse field:', value);
+      return [];
+    }
+  }
+};
   // Enhanced validation check
   const validateForm = () => {
     const errors = questions.reduce((acc, q, index) => {
@@ -54,10 +81,52 @@ const SurveyPreview = () => {
     return errors.length === 0;
   };
 
+  const handleGridChange = (qIndex, rIndex, cIndex, checked) => {
+    setAnswers(prev => {
+      const newAnswers = { ...prev };
+      if (!newAnswers[qIndex]) newAnswers[qIndex] = {};
+  
+      if (checked) {
+        if (questions[qIndex].type === "multipleChoiceGrid") {
+          newAnswers[qIndex][rIndex] = [cIndex];
+        } else {
+          newAnswers[qIndex][rIndex] = [
+            ...(newAnswers[qIndex][rIndex] || []),
+            cIndex
+          ];
+        }
+      } else {
+        newAnswers[qIndex][rIndex] = (newAnswers[qIndex][rIndex] || [])
+          .filter(c => c !== cIndex);
+      }
+      
+      return newAnswers;
+    });
+  };
+  const handleInputChange = (qIndex, value) => {
+    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+  };
+  
+  const handleMultipleChoiceChange = (qIndex, value) => {
+    setAnswers(prev => ({ ...prev, [qIndex]: value }));
+  };
+  
+  const handleCheckboxChange = (qIndex, value) => {
+    setAnswers(prev => {
+      const current = prev[qIndex] || [];
+      return {
+        ...prev,
+        [qIndex]: current.includes(value)
+          ? current.filter(v => v !== value)
+          : [...current, value]
+      };
+    });
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-
+  
     setIsSubmitting(true);
     try {
       const { data: responseData, error: responseError } = await supabase
@@ -65,18 +134,31 @@ const SurveyPreview = () => {
         .insert({ survey_id: surveyDBId })
         .select()
         .single();
-
+  
       if (responseError) throw responseError;
-
-      const answerRows = questions.map((q, i) => ({
-        response_id: responseData.id,
-        question_id: q.id,
-        answer_value: answers[i] || "",
-      }));
-
+  
+      // Convert grid answers
+      const answerRows = questions.flatMap((q, qIndex) => {
+        if (["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type)) {
+          return Object.entries(answers[qIndex] || {}).flatMap(([rowIndex, selectedCols]) =>
+            selectedCols.map((colIndex) => ({
+              response_id: responseData.id,
+              question_id: q.id,
+              answer_value: `Row: ${q.rows[rowIndex]}, Col: ${q.columns[colIndex]}`
+            }))
+          );
+        } else {
+          return [{
+            response_id: responseData.id,
+            question_id: q.id,
+            answer_value: answers[qIndex] || "",
+          }];
+        }
+      });
+  
       const { error: answersError } = await supabase.from("answers").insert(answerRows);
       if (answersError) throw answersError;
-
+  
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 5000);
       setAnswers({});
@@ -86,6 +168,7 @@ const SurveyPreview = () => {
       setIsSubmitting(false);
     }
   };
+  
 
   // Download QR code as PNG
   const downloadQRCode = () => {
@@ -210,6 +293,38 @@ const SurveyPreview = () => {
                       ))}
                     </div>
                   )}
+
+{["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type) && (
+  <div className="overflow-auto">
+    <table className=" border w-full">
+      <thead>
+        <tr>
+          <th className="border px-4 py-2"></th> {/* Empty top-left cell */}
+          {(q.columns || []).map((col, cIndex) => (
+            <th key={cIndex} className="border px-4 py-2 ">{col}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {(q.rows || []).map((row, rIndex) => (
+          <tr key={rIndex}>
+            <td className="border px-4 py-2 font-medium">{row}</td>
+            {(q.columns || []).map((_, cIndex) => (
+              <td key={cIndex} className="border px-4 py-2 text-center">
+                <input
+                  type={q.question_type === "multipleChoiceGrid" ? "radio" : "checkbox"}
+                  name={`grid-${qIndex}-row${rIndex}`}
+                  onChange={(e) => handleGridChange(qIndex, rIndex, cIndex, e.target.checked)}
+                />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
+
 
                   {q.question_type === "dropdown" && (
                     <select

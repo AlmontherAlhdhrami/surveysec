@@ -1,35 +1,36 @@
-// context/SurveyContext.jsx
-import React, { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
-const SurveyContext = createContext(null);
+const SurveyContext = createContext();
 
 export const SurveyProvider = ({ children }) => {
-  // 1) تعريف الحقلين:
   const [surveyDBId, setSurveyDBId] = useState(null);
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState([]);  // Ensure this is properly set
+  const [frameColor, setFrameColor] = useState("#ffffff");
+  const [buttonColor, setButtonColor] = useState("#4F46E5");
+  const [answerColor, setAnswerColor] = useState("#F59E0B");
 
-  // Example color states
-  const [frameColor, setFrameColor] = useState("#ffffff");   // Outer/container
-  const [buttonColor, setButtonColor] = useState("#4F46E5"); // Buttons
-  const [answerColor, setAnswerColor] = useState("#4F46E5"); // Radio/checkbox accent color
-
-  // 2) إضافة setSurveyDBId إلى كائن value
-  const value = {
-    surveyDBId,
-    setSurveyDBId,   // <-- لابد من تصدير الدالة
-    title, setTitle,
-    description, setDescription,
-    questions, setQuestions,
-    frameColor, setFrameColor,
-    buttonColor, setButtonColor,
-    answerColor, setAnswerColor
-  };
 
   return (
-    <SurveyContext.Provider value={value}>
+    <SurveyContext.Provider
+      value={{
+        surveyDBId,
+        setSurveyDBId,
+        title,
+        setTitle,
+        description,
+        setDescription,
+        questions,
+        setQuestions,  // Ensure questions are correctly updated
+        frameColor,
+        setFrameColor,
+        buttonColor,
+        setButtonColor,
+        answerColor,
+        setAnswerColor,
+      }}
+    >
       {children}
     </SurveyContext.Provider>
   );

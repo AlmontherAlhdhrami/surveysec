@@ -15,10 +15,21 @@ const ViewSurvey = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [frameColor, setFrameColor] = useState('#ffffff');
+  const [answerColor, setAnswerColor] = useState('#4f46e5');
 
   useEffect(() => {
     if (surveyId) fetchSurveyData();
   }, [surveyId, responseId]);
+
+  const safeJsonParse = (value, fallback) => {
+    try {
+      if (typeof value === 'string') return JSON.parse(value);
+      return Array.isArray(value) ? value : fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
   const fetchSurveyData = async () => {
     try {
@@ -44,10 +55,15 @@ const ViewSurvey = () => {
   const fetchSurvey = async () => {
     const { data, error } = await supabase
       .from("surveys")
-      .select("*")
+      .select("*, frame_color, answer_color")
       .eq("id", surveyId)
       .single();
+
     if (error) throw error;
+    
+    setFrameColor(data.frame_color || '#ffffff');
+    setAnswerColor(data.answer_color || '#4f46e5');
+    
     return data;
   };
 
@@ -57,17 +73,24 @@ const ViewSurvey = () => {
       .select("*")
       .eq("survey_id", surveyId)
       .order("created_at");
+
     if (error) throw error;
-    return data.map(processQuestion);
+    
+    return data.map(q => ({
+      ...q,
+      options: safeJsonParse(q.options, []),
+      rows: safeJsonParse(q.rows, []),
+      columns: safeJsonParse(q.columns, []),
+    }));
   };
 
-  const processQuestion = (q) => ({
-    ...q,
-    options: typeof q.options === "string" ? JSON.parse(q.options) : q.options || [],
-  });
-
   const initializeEmptyAnswers = (questions) =>
-    questions.reduce((acc, q) => ({ ...acc, [q.id]: q.question_type === "checkboxes" ? [] : "" }), {});
+    questions.reduce((acc, q) => ({
+      ...acc, 
+      [q.id]: ["checkboxes", "checkboxGrid"].includes(q.question_type) ? [] :
+              q.question_type === "multipleChoiceGrid" ? {} : 
+              ""
+    }), {});
 
   const fetchResponse = async (surveyData, questionsData) => {
     const { data: responseData, error } = await supabase
@@ -75,12 +98,28 @@ const ViewSurvey = () => {
       .select("*, answers(*)")
       .eq("id", responseId)
       .single();
+
     if (error) throw error;
 
-    setAnswers(responseData.answers.reduce((acc, answer) => ({
-      ...acc,
-      [answer.question_id]: answer.answer_value
-    }), initializeEmptyAnswers(questionsData)));
+    const parsedAnswers = responseData.answers.reduce((acc, answer) => {
+      try {
+        const question = questionsData.find(q => q.id === answer.question_id);
+        let value = safeJsonParse(answer.answer_value, answer.answer_value);
+
+        if (question?.question_type.endsWith("Grid")) {
+          value = Object.entries(value).reduce((gridAcc, [key, val]) => ({
+            ...gridAcc,
+            [key]: val
+          }), {});
+        }
+
+        return { ...acc, [answer.question_id]: value };
+      } catch (e) {
+        return acc;
+      }
+    }, {});
+
+    setAnswers(parsedAnswers);
     setIsEditing(true);
   };
 
@@ -92,11 +131,23 @@ const ViewSurvey = () => {
   const validateForm = () => {
     const newErrors = questions.reduce((acc, q) => {
       if (!q.is_required) return acc;
+      
       const answer = answers[q.id];
-      const isEmpty = Array.isArray(answer) 
-        ? answer.length === 0
-        : !answer?.toString().trim();
-      return isEmpty ? { ...acc, [q.id]: "This question is required" } : acc;
+      let isValid = true;
+
+      if (q.question_type === "multipleChoiceGrid") {
+        isValid = Object.keys(answer || {}).length === q.rows.length;
+      } else if (q.question_type === "checkboxGrid") {
+        isValid = Object.values(answer || {}).every(
+          selections => selections.length > 0
+        );
+      } else if (Array.isArray(answer)) {
+        isValid = answer.length > 0;
+      } else {
+        isValid = !!answer?.toString().trim();
+      }
+
+      return isValid ? acc : { ...acc, [q.id]: "This question is required" };
     }, {});
 
     setErrors(newErrors);
@@ -144,15 +195,29 @@ const ViewSurvey = () => {
   };
 
   const handleAnswersUpdate = async (responseId) => {
-    const answerRows = questions.map(q => ({
-      response_id: responseId,
-      question_id: q.id,
-      answer_value: answers[q.id] ?? "",
-    }));
+    const answerRows = questions.flatMap(q => {
+      const answer = answers[q.id];
+      
+      if (["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type)) {
+        return Object.entries(answer || {}).map(([rowIndex, colValue]) => ({
+          response_id: responseId,
+          question_id: q.id,
+          answer_value: JSON.stringify({
+            type: q.question_type,
+            rowIndex: parseInt(rowIndex),
+            selections: colValue
+          })
+        }));
+      }
+      
+      return {
+        response_id: responseId,
+        question_id: q.id,
+        answer_value: Array.isArray(answer) ? JSON.stringify(answer) : answer
+      };
+    });
 
-    const { error } = await supabase
-      .from("answers")
-      .insert(answerRows);
+    const { error } = await supabase.from("answers").insert(answerRows);
     if (error) throw error;
   };
 
@@ -163,6 +228,7 @@ const ViewSurvey = () => {
       question: q,
       value,
       error,
+      answerColor,
       onChange: (val) => handleChange(q.id, val),
     };
 
@@ -173,6 +239,8 @@ const ViewSurvey = () => {
       case "checkboxes": return <CheckboxInput {...inputProps} />;
       case "dropdown": return <DropdownInput {...inputProps} />;
       case "rating": return <RatingInput {...inputProps} />;
+      case "multipleChoiceGrid": return <GridRadioInput {...inputProps} />;
+      case "checkboxGrid": return <GridCheckboxInput {...inputProps} />;
       default: return null;
     }
   };
@@ -182,15 +250,21 @@ const ViewSurvey = () => {
   if (submitted) return <SubmissionSuccess isEditing={isEditing} />;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen py-8" style={{ backgroundColor: frameColor }}>
       <div className="max-w-2xl mx-auto px-4">
-        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
-          <Header survey={survey} isEditing={isEditing} navigate={navigate} />
+        <div 
+          className="bg-white rounded-xl shadow-lg p-6 sm:p-8"
+          style={{
+            border: `2px solid ${answerColor}`,
+            boxShadow: `0 4px 6px ${answerColor}33`
+          }}
+        >
+          <Header survey={survey} isEditing={isEditing} navigate={navigate} answerColor={answerColor} />
           
           <form onSubmit={handleSubmit} className="space-y-6">
             {questions.map(q => (
               <div key={q.id} className="space-y-3">
-                <QuestionLabel q={q} />
+                <QuestionLabel q={q} answerColor={answerColor} />
                 {renderQuestionInput(q)}
                 {errors[q.id] && <ErrorDisplay message={errors[q.id]} />}
               </div>
@@ -200,6 +274,7 @@ const ViewSurvey = () => {
               isEditing={isEditing}
               isSubmitting={isSubmitting}
               navigate={navigate}
+              answerColor={answerColor}
             />
           </form>
         </div>
@@ -208,7 +283,122 @@ const ViewSurvey = () => {
   );
 };
 
-// Sub-components
+const GridRadioInput = ({ question, value = {}, onChange, error, answerColor }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full border-collapse">
+      <thead>
+        <tr>
+          <th className="p-2 border" style={{ borderColor: answerColor }}></th>
+          {question.columns.map((col, cIndex) => (
+            <th 
+              key={cIndex} 
+              className="p-2 border font-medium"
+              style={{ borderColor: answerColor }}
+            >
+              {col}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {question.rows.map((row, rIndex) => (
+          <tr key={rIndex}>
+            <td 
+              className="p-2 border font-medium"
+              style={{ borderColor: answerColor }}
+            >
+              {row}
+            </td>
+            {question.columns.map((_, cIndex) => (
+              <td 
+                key={cIndex} 
+                className="p-2 border text-center"
+                style={{ borderColor: answerColor }}
+              >
+                <input
+                  type="radio"
+                  name={`row-${question.id}-${rIndex}`}
+                  checked={value[rIndex] === cIndex}
+                  onChange={() => onChange({
+                    ...value,
+                    [rIndex]: value[rIndex] === cIndex ? null : cIndex
+                  })}
+                  style={{ 
+                    accentColor: answerColor,
+                    borderColor: answerColor
+                  }}
+                />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {error && <ErrorDisplay message={error} />}
+  </div>
+);
+
+const GridCheckboxInput = ({ question, value = {}, onChange, error, answerColor }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full border-collapse">
+      <thead>
+        <tr>
+          <th className="p-2 border" style={{ borderColor: answerColor }}></th>
+          {question.columns.map((col, cIndex) => (
+            <th 
+              key={cIndex} 
+              className="p-2 border font-medium"
+              style={{ borderColor: answerColor }}
+            >
+              {col}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {question.rows.map((row, rIndex) => (
+          <tr key={rIndex}>
+            <td 
+              className="p-2 border font-medium"
+              style={{ borderColor: answerColor }}
+            >
+              {row}
+            </td>
+            {question.columns.map((_, cIndex) => (
+              <td 
+                key={cIndex} 
+                className="p-2 border text-center"
+                style={{ borderColor: answerColor }}
+              >
+                <input
+                  type="checkbox"
+                  checked={(value[rIndex] || []).includes(cIndex)}
+                  onChange={(e) => {
+                    const current = value[rIndex] || [];
+                    const newValue = e.target.checked
+                      ? [...current, cIndex]
+                      : current.filter(item => item !== cIndex);
+                    
+                    onChange({
+                      ...value,
+                      [rIndex]: newValue
+                    });
+                  }}
+                  style={{ 
+                    accentColor: answerColor,
+                    borderColor: answerColor
+                  }}
+                />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {error && <ErrorDisplay message={error} />}
+  </div>
+);
+
 const LoadingIndicator = () => (
   <div className="text-center mt-10">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto" />
@@ -229,13 +419,13 @@ const SubmissionSuccess = ({ isEditing }) => (
   </div>
 );
 
-const Header = ({ survey, isEditing, navigate }) => (
+const Header = ({ survey, isEditing, navigate, answerColor }) => (
   <div className="flex justify-between items-start mb-6">
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-indigo-700">
+      <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: answerColor }}>
         {survey.title}
       </h1>
-      <p className="text-gray-600 mt-2">{survey.description}</p>
+      <p className="mt-2" style={{ color: answerColor }}>{survey.description}</p>
     </div>
     {isEditing && (
       <button
@@ -248,8 +438,8 @@ const Header = ({ survey, isEditing, navigate }) => (
   </div>
 );
 
-const QuestionLabel = ({ q }) => (
-  <label className="block text-lg font-medium text-gray-900">
+const QuestionLabel = ({ q, answerColor }) => (
+  <label className="block text-lg font-medium" style={{ color: answerColor }}>
     {q.question_text}
     {q.is_required && <span className="text-red-500 ml-1">*</span>}
   </label>
@@ -259,48 +449,64 @@ const ErrorDisplay = ({ message }) => (
   <p className="text-red-500 text-sm">{message}</p>
 );
 
-const ShortAnswerInput = ({ value, onChange }) => (
+const ShortAnswerInput = ({ value, onChange, answerColor }) => (
   <input
     type="text"
-    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+    className="w-full p-3 rounded-lg focus:ring-2"
+    style={{
+      border: `2px solid ${answerColor}`,
+      focusRingColor: answerColor
+    }}
     value={value}
     onChange={(e) => onChange(e.target.value)}
   />
 );
 
-const ParagraphInput = ({ value, onChange }) => (
+const ParagraphInput = ({ value, onChange, answerColor }) => (
   <textarea
     rows={4}
-    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+    className="w-full p-3 rounded-lg focus:ring-2"
+    style={{
+      border: `2px solid ${answerColor}`,
+      focusRingColor: answerColor
+    }}
     value={value}
     onChange={(e) => onChange(e.target.value)}
   />
 );
 
-const MultipleChoiceInput = ({ question, value, onChange }) => (
+const MultipleChoiceInput = ({ question, value, onChange, answerColor }) => (
   <div className="space-y-2">
     {question.options.map((opt) => (
       <label key={opt} className="inline-grid grid-cols-3 items-center space-x-3">
         <input
           type="radio"
           name={`radio-${question.id}`}
-          className="h-5 w-5 text-indigo-600"
+          className="h-5 w-5"
+          style={{ 
+            accentColor: answerColor,
+            borderColor: answerColor 
+          }}
           checked={value === opt}
           onChange={() => onChange(opt)}
         />
-        <span className="text-gray-700">{opt}</span>
+        <span style={{ color: answerColor }}>{opt}</span>
       </label>
     ))}
   </div>
 );
 
-const CheckboxInput = ({ question, value = [], onChange }) => (
+const CheckboxInput = ({ question, value = [], onChange, answerColor }) => (
   <div className="space-y-2">
     {question.options.map((opt) => (
       <label key={opt} className="inline-grid grid-cols-3 items-center space-x-3">
         <input
           type="checkbox"
-          className="h-5 w-5 text-indigo-600"
+          className="h-5 w-5"
+          style={{ 
+            accentColor: answerColor,
+            borderColor: answerColor 
+          }}
           checked={value.includes(opt)}
           onChange={(e) => 
             onChange(e.target.checked 
@@ -309,15 +515,19 @@ const CheckboxInput = ({ question, value = [], onChange }) => (
             )
           }
         />
-        <span className="text-gray-700">{opt}</span>
+        <span style={{ color: answerColor }}>{opt}</span>
       </label>
     ))}
   </div>
 );
 
-const DropdownInput = ({ question, value, onChange }) => (
+const DropdownInput = ({ question, value, onChange, answerColor }) => (
   <select
-    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+    className="w-full p-3 rounded-lg focus:ring-2"
+    style={{
+      border: `2px solid ${answerColor}`,
+      focusRingColor: answerColor
+    }}
     value={value}
     onChange={(e) => onChange(e.target.value)}
   >
@@ -328,22 +538,27 @@ const DropdownInput = ({ question, value, onChange }) => (
   </select>
 );
 
-const RatingInput = ({ value, onChange }) => (
+const RatingInput = ({ value, onChange, answerColor }) => (
   <StarRating
     value={value || 0}
     onChange={onChange}
     maxStars={5}
     editable={true}
-    activeColor="#4F46E5"
+    activeColor={answerColor}
   />
 );
 
-const FormControls = ({ isEditing, isSubmitting, navigate }) => (
+const FormControls = ({ isEditing, isSubmitting, navigate, answerColor }) => (
   <div className="mt-8 flex gap-4">
     <button
       type="submit"
       disabled={isSubmitting}
-      className="flex-1 bg-indigo-600 text-white py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+      className="flex-1 py-3 px-6 rounded-lg transition-colors disabled:opacity-50"
+      style={{
+        backgroundColor: answerColor,
+        color: '#ffffff',
+        hoverBg: `${answerColor}dd`
+      }}
     >
       {isEditing ? (
         <div className="flex items-center justify-center gap-2">

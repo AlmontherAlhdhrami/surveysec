@@ -21,11 +21,12 @@ import SurveyAnalysisPage from './pages/SurveyAnalysisPage';
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const router = createBrowserRouter([
+  { index: true, element: <Home /> },
+
   {
     path: '/',
     element: <App />,
     children: [
-      { index: true, element: <Home /> },
       { path: 'dashboard', element: <Dashboard /> },
       { path: 'builder', element: <SurveyBuilder /> },
       { path: 'builder/:surveyId', element: <SurveyBuilder /> },
