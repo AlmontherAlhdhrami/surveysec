@@ -15,8 +15,6 @@ const SurveyPreview = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Add form validation state
   const [formErrors, setFormErrors] = useState([]);
 
   useEffect(() => {
@@ -25,6 +23,19 @@ const SurveyPreview = () => {
       fetchQuestions();
     }
   }, [surveyDBId]);
+
+  const parseSurveyField = (value) => {
+    if (Array.isArray(value)) return value;
+    try {
+      return JSON.parse(value);
+    } catch (jsonError) {
+      try {
+        return value.split(',').map(item => item.trim());
+      } catch {
+        return [];
+      }
+    }
+  };
 
   const fetchQuestions = async () => {
     try {
@@ -36,7 +47,6 @@ const SurveyPreview = () => {
   
       if (error) throw error;
   
-      // Convert rows & columns from JSON string to array
       const processedQuestions = data.map(q => ({
         ...q,
         options: parseSurveyField(q.options),
@@ -49,31 +59,27 @@ const SurveyPreview = () => {
       console.error("Error fetching questions:", err);
     }
   };
-  
-  // Add this utility function to both SurveyBuilder and SurveyPreview
-const parseSurveyField = (value) => {
-  // If value is already an array, return it
-  if (Array.isArray(value)) return value;
-  
-  try {
-    // Try to parse as JSON first
-    return JSON.parse(value);
-  } catch (jsonError) {
-    try {
-      // Fallback to CSV parsing
-      return value.split(',').map(item => item.trim());
-    } catch (csvError) {
-      console.warn('Failed to parse field:', value);
-      return [];
-    }
-  }
-};
-  // Enhanced validation check
+
   const validateForm = () => {
     const errors = questions.reduce((acc, q, index) => {
-      if (q.is_required && !answers[index]?.length) {
-        acc.push(`Question ${index + 1} is required`);
+      if (!q.is_required) return acc;
+      
+      const answer = answers[index];
+      let isValid = true;
+
+      if (["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type)) {
+        isValid = Object.values(answer || {}).every(row => 
+          q.question_type === "multipleChoiceGrid" ? 
+          row.length === 1 : 
+          row.length > 0
+        );
+      } else if (Array.isArray(answer)) {
+        isValid = answer.length > 0;
+      } else {
+        isValid = !!answer?.toString().trim();
       }
+
+      if (!isValid) acc.push(`Question ${index + 1} is required`);
       return acc;
     }, []);
     
@@ -85,9 +91,9 @@ const parseSurveyField = (value) => {
     setAnswers(prev => {
       const newAnswers = { ...prev };
       if (!newAnswers[qIndex]) newAnswers[qIndex] = {};
-  
+
       if (checked) {
-        if (questions[qIndex].type === "multipleChoiceGrid") {
+        if (questions[qIndex].question_type === "multipleChoiceGrid") {
           newAnswers[qIndex][rIndex] = [cIndex];
         } else {
           newAnswers[qIndex][rIndex] = [
@@ -99,18 +105,18 @@ const parseSurveyField = (value) => {
         newAnswers[qIndex][rIndex] = (newAnswers[qIndex][rIndex] || [])
           .filter(c => c !== cIndex);
       }
-      
       return newAnswers;
     });
   };
+
   const handleInputChange = (qIndex, value) => {
     setAnswers(prev => ({ ...prev, [qIndex]: value }));
   };
-  
+
   const handleMultipleChoiceChange = (qIndex, value) => {
     setAnswers(prev => ({ ...prev, [qIndex]: value }));
   };
-  
+
   const handleCheckboxChange = (qIndex, value) => {
     setAnswers(prev => {
       const current = prev[qIndex] || [];
@@ -122,7 +128,11 @@ const parseSurveyField = (value) => {
       };
     });
   };
-  
+
+  const handleStarChange = (qIndex, stars) => {
+    setAnswers(prev => ({ ...prev, [qIndex]: stars }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -136,29 +146,30 @@ const parseSurveyField = (value) => {
         .single();
   
       if (responseError) throw responseError;
-  
-      // Convert grid answers
+
       const answerRows = questions.flatMap((q, qIndex) => {
         if (["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type)) {
-          return Object.entries(answers[qIndex] || {}).flatMap(([rowIndex, selectedCols]) =>
-            selectedCols.map((colIndex) => ({
+          return Object.entries(answers[qIndex] || {}).flatMap(([rowIndex, cols]) =>
+            cols.map(colIndex => ({
               response_id: responseData.id,
               question_id: q.id,
-              answer_value: `Row: ${q.rows[rowIndex]}, Col: ${q.columns[colIndex]}`
+              answer_value: JSON.stringify({
+                rowIndex: parseInt(rowIndex),
+                colIndex: colIndex
+              })
             }))
           );
-        } else {
-          return [{
-            response_id: responseData.id,
-            question_id: q.id,
-            answer_value: answers[qIndex] || "",
-          }];
         }
+        return [{
+          response_id: responseData.id,
+          question_id: q.id,
+          answer_value: answers[qIndex] || "",
+        }];
       });
-  
+
       const { error: answersError } = await supabase.from("answers").insert(answerRows);
       if (answersError) throw answersError;
-  
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 5000);
       setAnswers({});
@@ -168,9 +179,7 @@ const parseSurveyField = (value) => {
       setIsSubmitting(false);
     }
   };
-  
 
-  // Download QR code as PNG
   const downloadQRCode = () => {
     const canvas = document.getElementById("qrcode");
     const pngUrl = canvas.toDataURL("image/png");
@@ -181,16 +190,17 @@ const parseSurveyField = (value) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <div className="min-h-screen" style={{ backgroundColor: frameColor }}>
       <header className="bg-white shadow py-25 mb-8">
         <div className="container mx-auto px-4 flex items-center justify-between">
           <h1 className="text-2xl sm:text-3xl font-bold text-indigo-700 flex items-center gap-2">
-            <SparklesIcon className="h-8 w-8 text-indigo-500" />
+            <SparklesIcon className="h-8 w-8" style={{ color: answerColor }} />
             Survey Preview
           </h1>
           <Link
             to="/builder"
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+            className="px-4 py-2 rounded hover:bg-indigo-700 transition-colors"
+            style={{ backgroundColor: answerColor, color: "white" }}
           >
             Back to Builder
           </Link>
@@ -198,7 +208,6 @@ const parseSurveyField = (value) => {
       </header>
 
       <div className="container mx-auto px-4 pb-10">
-        {/* Success Message */}
         {showSuccess && (
           <div className="max-w-4xl mx-auto mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center gap-3">
             <CheckIcon className="h-6 w-6 text-green-600" />
@@ -209,7 +218,6 @@ const parseSurveyField = (value) => {
           </div>
         )}
 
-        {/* Form Errors */}
         {formErrors.length > 0 && (
           <div className="max-w-4xl mx-auto mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
             <p className="font-semibold mb-2">Please fix the following errors:</p>
@@ -221,36 +229,37 @@ const parseSurveyField = (value) => {
           </div>
         )}
 
-        {/* Survey Card */}
         <div 
-          className="max-w-4xl mx-auto rounded-xl shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-3xl"
-          style={{ backgroundColor: frameColor }}
+          className="max-w-4xl mx-auto rounded-xl shadow-2xl overflow-hidden"
+          style={{ backgroundColor: frameColor, border: `2px solid ${answerColor}` }}
         >
           <div className="p-8 sm:p-10 space-y-6">
             <div className="text-center space-y-4">
-              <h2 className="text-2xl sm:text-4xl font-bold text-gray-800">{title}</h2>
-              <p className="text-gray-700 text-lg">{description}</p>
+              <h2 className="text-2xl sm:text-4xl font-bold" style={{ color: answerColor }}>
+                {title}
+              </h2>
+              <p className="text-lg" style={{ color: answerColor }}>{description}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
               {questions.map((q, qIndex) => (
                 <div 
                   key={q.id}
-                  className="bg-white p-6 rounded-lg shadow-sm border border-gray-100"
+                  className="bg-white p-6 rounded-lg shadow-sm"
+                  style={{ border: `1px solid ${answerColor}` }}
                 >
-                  <label className="block text-lg font-medium text-gray-900 mb-4">
+                  <label className="block text-lg font-medium mb-4" style={{ color: answerColor }}>
                     {q.question_text}
                     {q.is_required && <span className="text-red-500 ml-1">*</span>}
                   </label>
 
-                  {/* Input Fields */}
                   {q.question_type === "shortAnswer" && (
                     <input
                       type="text"
-                      className="w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none"
+                      className="w-full p-3 rounded-lg"
                       style={{
-                        borderColor: answerColor,
-                        focusRingColor: answerColor
+                        border: `2px solid ${answerColor}`,
+                        focus: `ring-2 ${answerColor}`
                       }}
                       onChange={(e) => handleInputChange(qIndex, e.target.value)}
                     />
@@ -259,10 +268,10 @@ const parseSurveyField = (value) => {
                   {q.question_type === "paragraph" && (
                     <textarea
                       rows={4}
-                      className="w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none"
+                      className="w-full p-3 rounded-lg"
                       style={{
-                        borderColor: answerColor,
-                        focusRingColor: answerColor
+                        border: `2px solid ${answerColor}`,
+                        focus: `ring-2 ${answerColor}`
                       }}
                       onChange={(e) => handleInputChange(qIndex, e.target.value)}
                     />
@@ -273,7 +282,7 @@ const parseSurveyField = (value) => {
                       {q.options.map((opt, oIndex) => (
                         <label
                           key={oIndex}
-                          className="inline-grid grid-cols-3  items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-grid grid-cols-3 items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           <input
                             type={q.question_type === "multipleChoice" ? "radio" : "checkbox"}
@@ -294,44 +303,62 @@ const parseSurveyField = (value) => {
                     </div>
                   )}
 
-{["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type) && (
-  <div className="overflow-auto">
-    <table className=" border w-full">
-      <thead>
-        <tr>
-          <th className="border px-4 py-2"></th> {/* Empty top-left cell */}
-          {(q.columns || []).map((col, cIndex) => (
-            <th key={cIndex} className="border px-4 py-2 ">{col}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {(q.rows || []).map((row, rIndex) => (
-          <tr key={rIndex}>
-            <td className="border px-4 py-2 font-medium">{row}</td>
-            {(q.columns || []).map((_, cIndex) => (
-              <td key={cIndex} className="border px-4 py-2 text-center">
-                <input
-                  type={q.question_type === "multipleChoiceGrid" ? "radio" : "checkbox"}
-                  name={`grid-${qIndex}-row${rIndex}`}
-                  onChange={(e) => handleGridChange(qIndex, rIndex, cIndex, e.target.checked)}
-                />
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)}
-
+                  {["multipleChoiceGrid", "checkboxGrid"].includes(q.question_type) && (
+                    <div className="overflow-auto">
+                      <table className="w-full" style={{ borderColor: answerColor }}>
+                        <thead>
+                          <tr>
+                            <th className="border px-4 py-2" style={{ borderColor: answerColor }}></th>
+                            {q.columns.map((col, cIndex) => (
+                              <th 
+                                key={cIndex} 
+                                className="border px-4 py-2"
+                                style={{ borderColor: answerColor }}
+                              >
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {q.rows.map((row, rIndex) => (
+                            <tr key={rIndex}>
+                              <td 
+                                className="border px-4 py-2 font-medium"
+                                style={{ borderColor: answerColor }}
+                              >
+                                {row}
+                              </td>
+                              {q.columns.map((_, cIndex) => (
+                                <td 
+                                  key={cIndex} 
+                                  className="border px-4 py-2 text-center"
+                                  style={{ borderColor: answerColor }}
+                                >
+                                  <input
+                                    type={q.question_type === "multipleChoiceGrid" ? "radio" : "checkbox"}
+                                    name={`grid-${qIndex}-row${rIndex}`}
+                                    onChange={(e) => handleGridChange(qIndex, rIndex, cIndex, e.target.checked)}
+                                    style={{ 
+                                      accentColor: answerColor,
+                                      borderColor: answerColor
+                                    }}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
                   {q.question_type === "dropdown" && (
                     <select
-                      className="w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none"
+                      className="w-full p-3 rounded-lg"
                       style={{
-                        borderColor: answerColor,
-                        focusRingColor: answerColor
+                        border: `2px solid ${answerColor}`,
+                        focus: `ring-2 ${answerColor}`
                       }}
                       onChange={(e) => handleInputChange(qIndex, e.target.value)}
                     >
@@ -364,11 +391,11 @@ const parseSurveyField = (value) => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full py-4 text-lg font-semibold text-white rounded-lg transition-all ${
-                  isSubmitting 
-                    ? "bg-gray-400 cursor-not-allowed" 
-                    : "bg-indigo-600 hover:bg-indigo-700"
-                }`}
+                className="w-full py-4 text-lg font-semibold text-white rounded-lg transition-all"
+                style={{ 
+                  backgroundColor: isSubmitting ? "#9CA3AF" : answerColor,
+                  opacity: isSubmitting ? 0.7 : 1
+                }}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
@@ -383,11 +410,16 @@ const parseSurveyField = (value) => {
           </div>
         </div>
 
-        {/* Share Section */}
-        <div className="mt-10 max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        <div 
+          className="mt-10 max-w-4xl mx-auto p-8 rounded-xl shadow-lg"
+          style={{ 
+            backgroundColor: frameColor,
+            border: `2px solid ${answerColor}`
+          }}
+        >
           <div className="text-center space-y-6">
-            <h3 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
-              <SparklesIcon className="h-6 w-6 text-indigo-500" />
+            <h3 className="text-2xl font-bold flex items-center justify-center gap-2" style={{ color: answerColor }}>
+              <SparklesIcon className="h-6 w-6" />
               Share Your Survey
             </h3>
             
@@ -396,11 +428,11 @@ const parseSurveyField = (value) => {
                 id="qrcode"
                 value={shareLink}
                 size={200}
-                bgColor="#ffffff"
+                bgColor={frameColor}
                 fgColor={answerColor}
                 level="H"
-                className="p-4 bg-white rounded-lg border-2"
-                style={{ borderColor: answerColor }}
+                className="p-4 rounded-lg"
+                style={{ border: `2px solid ${answerColor}` }}
               />
 
               <div className="w-full max-w-md space-y-4">
@@ -409,8 +441,8 @@ const parseSurveyField = (value) => {
                     type="text"
                     value={shareLink}
                     readOnly
-                    className="w-full p-3 border-2 rounded-lg text-center truncate"
-                    style={{ borderColor: answerColor }}
+                    className="w-full p-3 rounded-lg text-center truncate"
+                    style={{ border: `2px solid ${answerColor}` }}
                   />
                   <button
                     onClick={() => {
@@ -421,7 +453,7 @@ const parseSurveyField = (value) => {
                     className="p-3 rounded-lg hover:bg-gray-50 transition-colors"
                     title="Copy link"
                   >
-                    <ClipboardDocumentIcon className="h-6 w-6 text-gray-600" />
+                    <ClipboardDocumentIcon className="h-6 w-6" style={{ color: answerColor }} />
                   </button>
                 </div>
                 {copied && (
@@ -435,14 +467,24 @@ const parseSurveyField = (value) => {
               <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
                 <button
                   onClick={downloadQRCode}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 justify-center"
+                  className="px-6 py-2 rounded-lg flex items-center gap-2 justify-center"
+                  style={{ 
+                    backgroundColor: answerColor,
+                    color: "white",
+                    hoverBg: `${answerColor}dd`
+                  }}
                 >
                   Download QR Code
                 </button>
                 <Link
                   to={`/view/${surveyDBId}`}
                   target="_blank"
-                  className="px-6 py-2 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 flex items-center gap-2 justify-center"
+                  className="px-6 py-2 rounded-lg flex items-center gap-2 justify-center"
+                  style={{ 
+                    border: `2px solid ${answerColor}`,
+                    color: answerColor,
+                    hoverBg: `${answerColor}10`
+                  }}
                 >
                   Open Survey Page
                   <ArrowTopRightOnSquareIcon className="h-5 w-5" />
