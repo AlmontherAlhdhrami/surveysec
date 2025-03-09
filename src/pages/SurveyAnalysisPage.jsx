@@ -14,6 +14,8 @@ import {
   Legend,
   RadialLinearScale
 } from 'chart.js';
+import { ChartBarIcon } from '@heroicons/react/24/outline';
+
 import { Bar, Pie, Line, Radar, Doughnut, PolarArea, Scatter } from 'react-chartjs-2';
 import { jStat } from "jstat";
 import * as ss from "simple-statistics";
@@ -96,7 +98,7 @@ const SurveyAnalysisPage = () => {
       try {
         const { data, error } = await supabase
           .from("surveys")
-          .select("id, title")
+          .select("id, title,description")
           .eq("user_id", user.id);
 
         setState(prev => ({
@@ -310,10 +312,15 @@ const SurveyAnalysisPage = () => {
         label: 'Responses',
         data: Object.values(answerCount),
         backgroundColor: [
-          '#3B82F6', '#10B981', '#F59E0B', '#EF4444'
+          "rgba(116, 4, 29, 0.6)",
+          "rgba(0, 121, 202, 0.6)",
+          "rgba(218, 156, 0, 0.6)",
+          "rgba(4, 78, 78, 0.6)",
+          "rgba(19, 0, 57, 0.6)",
+          "rgba(128, 64, 0, 0.6)",
         ],
-        borderColor: 'white',
-        borderWidth: 1
+        borderColor: "rgba(0, 0, 0, 0.1)",
+        borderWidth: 2,
       }]
     };
   };
@@ -497,20 +504,32 @@ const SurveyAnalysisPage = () => {
 
         {!state.selectedSurvey ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {state.surveys?.map(survey => (
-              <button
-                key={survey.id}
-                onClick={() => {
-                  setState(prev => ({ ...prev, selectedSurvey: survey }));
-                  processSurveyData(survey.id);
-                }}
-                className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-all text-left"
-              >
-                <h3 className="text-lg font-semibold text-gray-800">{survey.title}</h3>
-                <p className="text-sm text-gray-600 mt-2">Analyze →</p>
-              </button>
-            ))}
-          </div>
+          {state.surveys?.map((survey) => (
+            <button
+              key={survey.id}
+              onClick={() => {
+                setState((prev) => ({ ...prev, selectedSurvey: survey }));
+                processSurveyData(survey.id);
+              }}
+              className="p-6 bg-gradient-to-r from-violet-900 to-indigo-600 rounded-xl shadow-md hover:shadow-lg transition-all text-left flex items-center gap-4"
+            >
+              <div className="flex-shrink-0">
+                <ChartBarIcon className="w-10 h-10 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">{survey.title}</h3>
+                <p className="text-lg font-semibold text-white overflow-hidden line-clamp-2">
+                  {survey.description}
+                </p> </div>
+                  {/* Navigation Button */}
+          <button className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white  px-6 py-2 transition duration-300 ease-in-out">
+            <span>Analyze</span>
+            <i className="fas fa-arrow-right text-white"></i>
+          </button>
+             
+            </button>
+          ))}
+        </div>
         ) : (
           <div className="space-y-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg shadow">

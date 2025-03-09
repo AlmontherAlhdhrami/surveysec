@@ -140,7 +140,6 @@ export const generateAdvancedAIReport = async (questions, answers, setState) => 
     }
 
     const analysisResults = questions.map((question, index) => {
-
       const validation = validateQuestionData(question, answers);
       const analyses = validation.isValid ? {
         chiSquare: performChiSquareTest(question, answers),
@@ -163,16 +162,57 @@ export const generateAdvancedAIReport = async (questions, answers, setState) => 
       console.warn("⚠️ No valid questions found. AI report may be empty.");
     }
 
+    // Generate AI Report Content
     const promptSections = analysisResults.map((result, index) => {
       if (!result.validation.isValid) {
-        return `❌ Question ${index + 1}: ${result.questionText}\nIssues: ${result.validation.errors.join(", ")}\nQuality Score: ${result.validation.qualityScore}%`;
+        return `❌ **Question ${index + 1}:** ${result.questionText}\n**Issues:** ${result.validation.errors.join(", ")}\n**Quality Score:** ${result.validation.qualityScore}%`;
       }
 
-      return `✅ Question ${index + 1}: ${result.questionText}\nResponses: ${result.validation.filteredAnswers.length}\nMean: ${result.analyses.summaryStats.mean?.toFixed(2) || 'N/A'}\nCorrelation: ${result.analyses.correlation?.correlationValue?.toFixed(2) || 'N/A'}\nSignificance: ${result.analyses.chiSquare?.significant ? 'Yes' : 'No'}\nQuality Score: ${result.validation.qualityScore}%`;
-    });
+      return `✅ **Question ${index + 1}:** ${result.questionText}\n- **Responses:** ${result.validation.filteredAnswers.length}\n- **Mean:** ${result.analyses.summaryStats.mean?.toFixed(2) || 'N/A'}\n- **Correlation:** ${result.analyses.correlation?.correlationValue?.toFixed(2) || 'N/A'} (${result.analyses.correlation?.strength || 'N/A'})\n- **Significance:** ${result.analyses.chiSquare?.significant ? 'Yes' : 'No'}\n- **Quality Score:** ${result.validation.qualityScore}%`;
+    }).join("\n\n");
 
-    const fullPrompt = `**Survey Analysis Report**\n\n📌 **Executive Summary**\n1. Dataset Quality: ${validResults.length}/${questions.length} valid questions\n2. Key Trends and Patterns Identified\n\n📊 **Statistical Insights**\n${promptSections.join("\n\n")}\n\n📢 **Recommendations**\n1. Improve survey structure for better data collection.\n2. Optimize question clarity to reduce inconsistencies.\n3. Further analyze trends using predictive modeling.`;
+    const fullPrompt = `
+## **Survey Analysis Report**  
 
+### 📖 **Introduction**  
+This report provides an in-depth analysis of the survey responses, highlighting key patterns, insights, and actionable recommendations.  
+
+---
+
+### 📌 **Executive Summary**  
+1. **Dataset Quality:** ${validResults.length}/${questions.length} valid questions  
+2. **Key Trends and Patterns Identified:**  
+   - Improved data consistency  
+   - Strong correlation between certain variables  
+   - Need for more diversified response categories  
+
+---
+
+### 📊 **Key Findings**  
+${promptSections}
+
+---
+
+### 📈 **Statistical Insights**  
+- **Chi-Square Test:** Statistical significance measured for categorical data.  
+- **Regression Analysis:** Identifies patterns and relationships in numerical responses.  
+- **Correlation:** Measures the strength and direction of relationships between variables.  
+
+---
+
+### 📢 **Recommendations**  
+1. Improve survey structure for better data consistency.  
+2. Optimize question clarity to reduce inconsistencies.  
+3. Further analyze trends using predictive modeling.  
+
+---
+
+### 🔎 **Conclusion**  
+This report summarizes the key findings and provides insights for future decision-making. The recommendations provided aim to improve the quality and consistency of future data collection efforts.  
+
+---
+
+`;
 
     const aiResponse = await AIChatSession.sendMessage(fullPrompt);
     let responseText = "⚠️ AI response is empty.";
@@ -188,7 +228,6 @@ export const generateAdvancedAIReport = async (questions, answers, setState) => 
     } else {
       console.error("❌ AI Service returned an invalid response:", aiResponse);
     }
-
 
     // ✅ Update state with AI report
     setState(prev => ({
