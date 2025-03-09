@@ -520,12 +520,12 @@ const SurveyAnalysisPage = () => {
                 <h3 className="text-lg font-semibold text-white">{survey.title}</h3>
                 <p className="text-lg font-semibold text-white overflow-hidden line-clamp-2">
                   {survey.description}
-                </p> </div>
+                </p> 
                   {/* Navigation Button */}
           <button className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white  px-6 py-2 transition duration-300 ease-in-out">
             <span>Analyze</span>
             <i className="fas fa-arrow-right text-white"></i>
-          </button>
+          </button></div>
              
             </button>
           ))}

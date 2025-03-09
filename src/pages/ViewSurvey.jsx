@@ -17,6 +17,7 @@ const ViewSurvey = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [frameColor, setFrameColor] = useState('#ffffff');
   const [answerColor, setAnswerColor] = useState('#4f46e5');
+  
 
   useEffect(() => {
     if (surveyId) fetchSurveyData();
