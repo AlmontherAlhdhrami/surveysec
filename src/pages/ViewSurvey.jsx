@@ -477,46 +477,55 @@ const ParagraphInput = ({ value, onChange, answerColor }) => (
 );
 
 const MultipleChoiceInput = ({ question, value, onChange, answerColor }) => (
-  <div className="space-y-2">
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {question.options.map((opt) => (
-      <label key={opt} className="inline-grid grid-cols-3 items-center space-x-3">
+      <label
+        key={opt}
+        className="flex items-center gap-2 p-3 border rounded-md cursor-pointer transition-all hover:bg-gray-50"
+        style={{
+          borderColor: value === opt ? answerColor : "#e5e7eb",
+          backgroundColor: value === opt ? `${answerColor}22` : "white",
+        }}
+      >
         <input
           type="radio"
           name={`radio-${question.id}`}
           className="h-5 w-5"
-          style={{ 
-            accentColor: answerColor,
-            borderColor: answerColor 
-          }}
+          style={{ accentColor: answerColor }}
           checked={value === opt}
           onChange={() => onChange(opt)}
         />
-        <span style={{ color: answerColor }}>{opt}</span>
+        <span className="text-gray-800">{opt}</span>
       </label>
     ))}
   </div>
 );
 
 const CheckboxInput = ({ question, value = [], onChange, answerColor }) => (
-  <div className="space-y-2">
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {question.options.map((opt) => (
-      <label key={opt} className="inline-grid grid-cols-3 items-center space-x-3">
+      <label
+        key={opt}
+        className="flex items-center gap-2 p-3 border rounded-md cursor-pointer transition-all hover:bg-gray-50"
+        style={{
+          borderColor: value.includes(opt) ? answerColor : "#e5e7eb",
+          backgroundColor: value.includes(opt) ? `${answerColor}22` : "white",
+        }}
+      >
         <input
           type="checkbox"
           className="h-5 w-5"
-          style={{ 
-            accentColor: answerColor,
-            borderColor: answerColor 
-          }}
+          style={{ accentColor: answerColor }}
           checked={value.includes(opt)}
-          onChange={(e) => 
-            onChange(e.target.checked 
-              ? [...value, opt] 
-              : value.filter(item => item !== opt)
+          onChange={(e) =>
+            onChange(
+              e.target.checked
+                ? [...value, opt]
+                : value.filter((item) => item !== opt)
             )
           }
         />
-        <span style={{ color: answerColor }}>{opt}</span>
+        <span className="text-gray-800">{opt}</span>
       </label>
     ))}
   </div>
