@@ -10,7 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { SwatchIcon } from "@heroicons/react/24/solid";
 import { useSurveyHelper } from "../utils/sureveyhepler";
-
+import {encrypt} from "../service/cryptoHelper"
 
 
 const SurveyBuilder = () => {
@@ -65,28 +65,29 @@ const SurveyBuilder = () => {
         .select("*")
         .eq("id", id)
         .single();
-
+  
       if (surveyError) throw surveyError;
-
+  
       const { data: qData, error: qError } = await supabase
         .from("questions")
         .select("*")
         .eq("survey_id", id);
-
+  
       if (qError) throw qError;
-
+  
       setSurveyDBId(survey.id);
-      setTitle(survey.title || "");
-      setDescription(survey.description || ""); 
-
+      // Encrypting the title and description before setting
+      setTitle(encrypt(survey.title) || "");
+      setDescription(encrypt(survey.description) || ""); 
+  
       const mappedQuestions = qData.map((dbQ) => ({
         id: dbQ.id,
-        text: dbQ.question_text,
+        text: encrypt(dbQ.question_text),  // Encrypting question text
         type: dbQ.question_type,
         required: dbQ.is_required,
         options: parseSurveyField(dbQ.options),
-      rows: parseSurveyField(dbQ.rows),
-      columns: parseSurveyField(dbQ.columns)
+        rows: parseSurveyField(dbQ.rows),
+        columns: parseSurveyField(dbQ.columns)
       }));
       setQuestions(mappedQuestions);
     } catch (err) {
@@ -94,7 +95,7 @@ const SurveyBuilder = () => {
       alert("Failed to load survey data");
     }
   };
-
+  
   // Add this utility function to both SurveyBuilder and SurveyPreview
 const parseSurveyField = (value) => {
   // If value is already an array, return it
