@@ -28,8 +28,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { path: 'dashboard', element: <Dashboard /> },
-      { path: 'builder', element: <SurveyBuilder /> },
-      { path: 'builder/:surveyId', element: <SurveyBuilder /> },
+    
       { path: 'preview', element: <SurveyPreview /> },
     
 
@@ -38,6 +37,8 @@ const router = createBrowserRouter([
       { path: 'contact', element: <Contact /> },
     ],
   },
+  { path: 'builder', element: <SurveyBuilder /> },
+  { path: 'builder/:surveyId', element: <SurveyBuilder /> },
   {path:'SurveyAnalysisPage',element:<SurveyAnalysisPage/>},
 
   { path: 'view', element: <ViewSurvey /> },
