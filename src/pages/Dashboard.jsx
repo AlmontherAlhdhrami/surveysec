@@ -11,6 +11,7 @@ import {
   PresentationChartBarIcon
 
 } from "@heroicons/react/24/outline";
+import {encrypt,decrypt} from "../service/cryptoHelper"
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ const Dashboard = () => {
 
     const { data, error } = await supabase
       .from("surveys")
-      .insert({ title: newName.trim(), user_id: user.id })
+      .insert({ title:encrypt( newName.trim()), user_id: user.id })
       .select()
       .single();
 
@@ -194,7 +195,7 @@ const Dashboard = () => {
                 </div>
                 
                 <h3 className="text-lg font-semibold text-white truncate mb-2">
-                  {survey.title}
+                  {decrypt(survey.title)}
                 </h3>
                 <p className="text-sm text-white mb-auto">
                   Created: {new Date(survey.created_at).toLocaleDateString()}
