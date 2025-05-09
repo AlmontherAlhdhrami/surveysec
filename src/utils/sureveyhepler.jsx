@@ -16,7 +16,7 @@ export const useSurveyHelper = () => {
     answerColor
   } = useSurveyContext();
 
-  // Function to add a new question
+
   // Function to add a new question
 const addQuestion = () => {
   setQuestions([
@@ -26,8 +26,8 @@ const addQuestion = () => {
       type: "shortAnswer", 
       options: [], 
       required: false,
-      rows: [], // 🛠 Ensure rows exist
-      columns: [] // 🛠 Ensure columns exist
+      rows: [], 
+      columns: [] 
     },
   ]);
 };

@@ -33,12 +33,13 @@ const router = createBrowserRouter([
       { path: 'preview', element: <SurveyPreview /> },
     
 
-      {path:'SurveyAnalysisPage',element:<SurveyAnalysisPage/>},
      
       { path: 'about', element: <About /> },
       { path: 'contact', element: <Contact /> },
     ],
   },
+  {path:'SurveyAnalysisPage',element:<SurveyAnalysisPage/>},
+
   { path: 'view', element: <ViewSurvey /> },
   { path: "view/:surveyId", element: <ViewSurvey /> },
 
