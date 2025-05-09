@@ -10,7 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { SwatchIcon } from "@heroicons/react/24/solid";
 import { useSurveyHelper } from "../utils/sureveyhepler";
-import {encrypt} from "../service/cryptoHelper"
+import {encrypt,decrypt} from "../service/cryptoHelper"
 
 
 const SurveyBuilder = () => {
@@ -78,11 +78,11 @@ const SurveyBuilder = () => {
       setSurveyDBId(survey.id);
       // Encrypting the title and description before setting
       setTitle(encrypt(survey.title) || "");
-      setDescription(encrypt(survey.description) || ""); 
+      setDescription(encrypt(survey.description)|| ""); 
   
       const mappedQuestions = qData.map((dbQ) => ({
         id: dbQ.id,
-        text: encrypt(dbQ.question_text),  // Encrypting question text
+        text: decrypt(dbQ.question_text),  // Encrypting question text
         type: dbQ.question_type,
         required: dbQ.is_required,
         options: parseSurveyField(dbQ.options),
