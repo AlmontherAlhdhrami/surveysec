@@ -29,8 +29,6 @@ import { jStat } from "jstat";
 import * as ss from "simple-statistics";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { generateAdvancedAIReport } from "../service/AIreport";
-import {encrypt,decrypt} from "../service/cryptoHelper"
-
 
 // Register all chart.js components
 ChartJS.register(
@@ -220,25 +218,11 @@ const SurveyAnalysisPage = () => {
           .select("id, title, description")
           .eq("user_id", user.id);
 
-          const decryptedSurveys = (data || []).map(s => {
-            try {
-              return {
-                ...s,
-                title: decrypt(s.title),
-                description: decrypt(s.description)
-              };
-            } catch (err) {
-              console.error("Decryption failed:", err);
-              return s; // fallback to original
-            }
-          });
-          
-          setState(prev => ({
-            ...prev,
-            surveys: decryptedSurveys,
-            error: error ? "Failed to load surveys" : null
-          }));
-          
+        setState(prev => ({
+          ...prev,
+          surveys: error ? [] : data || [],
+          error: error ? "Failed to load surveys" : null
+        }));
       } catch (error) {
         setState(prev => ({ ...prev, error: "Network error loading surveys" }));
       }
