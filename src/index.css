@@ -1,5 +1,34 @@
 @import "tailwindcss";
+/* index.css */
+html {
+  scroll-behavior: smooth;
+}
+/* Add these to your existing CSS */
+/* Smooth transitions */
+.transition-slow {
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
+/* Scroll animations */
+.scroll-fade {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-fade.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Locomotive Scroll adjustments */
+[data-scroll-container] {
+  perspective: 1px;
+}
+
+.c-scrollbar {
+  z-index: 1000;
+}
 .react-multi-email {
     min-height: 60px;
     border: 1px solid #ccc;

@@ -17,6 +17,10 @@ export default {
 				  800: '#5B21B6',
 				  900: '#4C1D95',
 				},
+				 
+        'royal-purple': '#7851A9',
+        'butterscotch': '#F5B041',
+     
 				'gold': {
 				  50: '#FFFBEB',
 				  100: '#FEF3C7',

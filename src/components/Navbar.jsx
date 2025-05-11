@@ -20,13 +20,14 @@ const Navbar = () => {
   const navItems = [
     { to: "/", label: "Home", icon: <HomeIcon className="h-5 w-5" /> },
     { to: "/Dashboard", label: "Dashboard", icon: <ChartBarIcon className="h-5 w-5" /> },
+        { to: "/SurveyAnalysisPage", label: "Analytics", icon: <DocumentTextIcon className="h-5 w-5" /> },
+
     { to: "/about", label: "About", icon: <InformationCircleIcon className="h-5 w-5" /> },
     { to: "/contact", label: "Contact", icon: <PhoneIcon className="h-5 w-5" /> },
-    { to: "/SurveyAnalysisPage", label: "Analytics", icon: <DocumentTextIcon className="h-5 w-5" /> },
   ];
 
   return (
-    <nav className="bg-white border-b border-gray-200 fixed w-full top-0 z-50 shadow-sm">
+    <nav className="bg-white/5 backdrop-blur-md fixed w-full top-0 z-50 shadow-md/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
@@ -34,7 +35,7 @@ const Navbar = () => {
           <div className="flex-shrink-0 flex items-center">
             <Link
               to="/"
-              className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+              className="flex items-center space-x-2 text-white hover:text-indigo-100 transition-colors"
             >
               <svg
                 className="h-8 w-8"
@@ -68,7 +69,7 @@ const Navbar = () => {
               <>
                 <Link
                   to="/Dashboard"
-                  className="flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors"
+                  className="flex items-center space-x-2 bg-white/30 text-white px-4 py-2 rounded-lg hover:bg-white/40 transition-colors backdrop-blur-sm"
                 >
                   <ChartBarIcon className="h-5 w-5" />
                   <span>Dashboard</span>
@@ -77,8 +78,8 @@ const Navbar = () => {
                   <UserButton 
                     appearance={{
                       elements: {
-                        userButtonAvatarBox: "h-8 w-8",
-                        userButtonPopoverCard: "shadow-lg"
+                        userButtonAvatarBox: "h-8 w-8 ring-2 ring-white/20",
+                        userButtonPopoverCard: "shadow-lg bg-white/95 backdrop-blur-md"
                       }
                     }}
                   />
@@ -88,7 +89,7 @@ const Navbar = () => {
               <div className="flex space-x-3">
                 <Link
                   to="/auth/sign-in"
-                  className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+                  className="px-5 py-2 rounded-lg bg-white/30 text-white hover:bg-white/40 transition-colors flex items-center space-x-2 backdrop-blur-sm"
                 >
                   <span>Sign In</span>
                 </Link>
@@ -100,7 +101,7 @@ const Navbar = () => {
           <div className="md:hidden -mr-2 flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none transition duration-150 ease-in-out"
+              className="inline-flex items-center justify-center p-2 rounded-md text-white hover:text-indigo-100 hover:bg-white/10 focus:outline-none transition duration-150 ease-in-out"
             >
               {isOpen ? (
                 <XMarkIcon className="h-6 w-6" />
@@ -113,8 +114,8 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Menu */}
-      <div className={`md:hidden ${isOpen ? 'block' : 'hidden'}`}>
-        <div className="pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
+      <div className={`md:hidden ${isOpen ? 'block' : 'hidden'} bg-white/95 backdrop-blur-lg border-b border-white/10`}>
+        <div className="pt-2 pb-3 space-y-1">
           {navItems.map((item) => (
             <MobileNavLink
               key={item.to}
@@ -125,12 +126,12 @@ const Navbar = () => {
               onClick={() => setIsOpen(false)}
             />
           ))}
-          <div className="px-4 pt-4 border-t border-gray-200">
+          <div className="px-4 pt-4 border-t border-white/10">
             {isSignedIn ? (
               <div className="flex items-center justify-between">
                 <Link
                   to="/Dashboard"
-                  className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-2"
+                  className="w-full text-left px-4 py-2 text-white hover:bg-white/10 rounded-lg flex items-center space-x-2"
                   onClick={() => setIsOpen(false)}
                 >
                   <ChartBarIcon className="h-5 w-5" />
@@ -141,7 +142,7 @@ const Navbar = () => {
             ) : (
               <Link
                 to="/auth/sign-in"
-                className="block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 rounded-lg"
+                className="block w-full px-4 py-2 text-left text-white hover:bg-white/10 rounded-lg"
                 onClick={() => setIsOpen(false)}
               >
                 Sign In
@@ -160,9 +161,9 @@ const NavLink = ({ to, label, icon, currentPath }) => (
     to={to}
     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
       currentPath === to 
-        ? 'bg-indigo-50 text-indigo-700' 
-        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-    }`}
+        ? 'bg-white/30 text-white' 
+        : 'text-white/80 hover:bg-white/10 hover:text-white'
+    } backdrop-blur-sm`}
   >
     {icon}
     <span className="text-sm font-medium">{label}</span>
@@ -176,8 +177,8 @@ const MobileNavLink = ({ to, label, icon, currentPath, onClick }) => (
     onClick={onClick}
     className={`flex items-center space-x-3 px-4 py-3 text-base ${
       currentPath === to
-        ? 'bg-indigo-50 text-indigo-700'
-        : 'text-gray-600 hover:bg-gray-50'
+        ? 'bg-white/20 text-white'
+        : 'text-white/80 hover:bg-white/10'
     }`}
   >
     {icon}

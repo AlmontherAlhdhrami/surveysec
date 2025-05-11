@@ -29,6 +29,7 @@ import { jStat } from "jstat";
 import * as ss from "simple-statistics";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { generateAdvancedAIReport } from "../service/AIreport";
+import {encrypt,decrypt} from "../service/cryptoHelper"
 
 // Register all chart.js components
 ChartJS.register(
@@ -741,7 +742,7 @@ const SurveyAnalysisPage = () => {
                   <ChartBarIcon className="w-10 h-10 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">{survey.title}</h3>
+                  <h3 className="text-lg font-semibold text-white">{decrypt(survey.title)}</h3>
                   <p className="text-lg font-semibold text-white overflow-hidden line-clamp-2">
                     {survey.description}
                   </p>
@@ -757,7 +758,7 @@ const SurveyAnalysisPage = () => {
           <div className="space-y-8">
             {/* Survey Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg shadow">
-              <h2 className="text-2xl font-semibold">{state.selectedSurvey.title}</h2>
+              <h2 className="text-2xl font-semibold">{decrypt(state.selectedSurvey.title)}</h2>
               <div className="flex gap-4 w-full sm:w-auto">
                 <select
                   value={state.chartType}

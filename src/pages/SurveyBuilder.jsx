@@ -77,7 +77,7 @@ const SurveyBuilder = () => {
   
       setSurveyDBId(survey.id);
       // Encrypting the title and description before setting
-      setTitle(survey.title || "");
+      setTitle(decrypt(survey.title) || "");
       setDescription(survey.description|| ""); 
   
       const mappedQuestions = qData.map((dbQ) => ({

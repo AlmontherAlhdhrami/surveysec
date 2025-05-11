@@ -1,133 +1,61 @@
-import React from 'react';
-import { FaUniversity, FaUsers, FaGraduationCap, FaChartPie, FaPalette, FaCode } from 'react-icons/fa';
+import React from "react";
+import { FiCode, FiServer, FiShield, FiActivity } from "react-icons/fi";
 
-const About = () => {
-  const teamMembers = [
-    { name: "Student 1", role: "Full Stack Developer" },
-    { name: "Student 2", role: "UI/UX Designer" },
-    { name: "Student 3", role: "Data Analyst" },
-    { name: "Student 4", role: "Project Manager" },
-  ];
+const teamMembers = [
+  { name: "Student 1", role: "Frontend Developer", id: "137771", icon: <FiCode /> },
+  { name: "Student 2", role: "Backend Developer", id: "135215", icon: <FiServer /> },
+  { name: "Student 3", role: "Security Specialist", id: "131704", icon: <FiShield /> },
+  { name: "Student 4", role: "AI & Analytics Lead", id: "129791", icon: <FiActivity /> },
+];
 
+export default function About() {
   return (
-    <div className="min-h-screen bg-cream-50 py-20 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <div className="flex items-center justify-center mb-6">
-            <FaUniversity className="text-4xl text-plum-600 mr-3 transition-colors duration-300" />
-            <h1 className="text-4xl font-bold text-plum-700 transition-colors duration-300">
-              Sultan Qaboos University
-            </h1>
-          </div>
-          <h2 className="text-3xl font-semibold text-gray-800 mb-4">
-            Computer Science Graduation Project
-          </h2>
-          <p className="text-xl text-plum-600 max-w-2xl mx-auto transition-colors duration-300">
-            Advanced Survey Analytics Platform - A comprehensive solution for data collection 
-            and analysis, developed as part of our final year project requirements.
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex flex-col items-center py-16 px-4 text-white">
+      {/* Header Section */}
+      <div className="max-w-4xl text-center mb-16 animate-fade-in-down">
+        <div className="inline-block bg-white/10 rounded-full px-6 py-2 mb-6 text-sm font-semibold backdrop-blur-sm">
+          🚀 Innovating Survey Technology
         </div>
+        <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-purple-300 bg-clip-text text-transparent">
+          Behind the Code
+        </h1>
+        <p className="text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
+          We're a passionate team of final year students dedicated to building secure, 
+          intelligent survey solutions that transform data into insights.
+        </p>
+      </div>
 
-        {/* University Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-16 transition-all duration-300 hover:shadow-xl">
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <img 
-              src="https://www.squ.edu.om/Portals/0/SQU%20Logo.png" 
-              alt="SQU Logo"
-              className="w-48 h-48 object-contain p-4 bg-plum-100 rounded-xl"
-            />
-            <div>
-              <h3 className="text-2xl font-bold text-plum-700 mb-4 transition-colors duration-300">About Sultan Qaboos University</h3>
-              <p className="text-plum-600 mb-4">
-                As Oman's premier institution of higher learning, SQU maintains the highest standards 
-                in academic excellence. This project represents our commitment to innovative solutions 
-                that address real-world challenges through technology.
-              </p>
-              <div className="flex items-center text-gold-500">
-                <FaGraduationCap className="mr-2 text-xl" />
-                <span className="font-medium">B.Sc. in Computer Science</span>
+      {/* Team Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl w-full px-4">
+        {teamMembers.map((member, idx) => (
+          <div
+            key={idx}
+            className="relative group bg-white/10 rounded-2xl p-8 backdrop-blur-sm border border-white/20 hover:border-white/40 transition-all duration-300 hover:-translate-y-2 shadow-xl hover:shadow-2xl"
+          >
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            
+            <div className="relative z-10">
+              <div className="w-16 h-16 mb-6 bg-gradient-to-r from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center text-3xl text-white">
+                {member.icon}
               </div>
+              <h2 className="text-2xl font-bold mb-2">{member.name}</h2>
+              <p className="text-cyan-300 font-semibold mb-2">{member.role}</p>
+              <p className="text-sm text-white/70">ID: {member.id}</p>
             </div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Team Section */}
-        <div className="mb-16">
-          <h3 className="text-3xl font-bold text-center text-plum-700 mb-12 transition-colors duration-300">
-            Development Team
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {teamMembers.map((member, index) => (
-              <div key={index} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 group">
-                <div className="w-32 h-32 bg-gold-50 rounded-full mx-auto mb-4 overflow-hidden transition-colors duration-300">
-                  <div className="w-full h-full flex items-center justify-center group-hover:bg-gold-100">
-                    <FaUsers className="text-4xl text-plum-600 transition-colors duration-300" />
-                  </div>
-                </div>
-                <h4 className="text-xl font-semibold text-center text-gray-800">{member.name}</h4>
-                <p className="text-center text-plum-600">{member.role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Project Overview */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
-          <div className="bg-plum-700 text-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-            <FaChartPie className="text-4xl mb-4 text-gold-400" />
-            <h4 className="text-xl font-bold mb-3">Project Objectives</h4>
-            <ul className="list-disc list-inside space-y-2">
-              {['Advanced Visualization', 'Real-time Analytics', 'Secure Data Flow', 'Intuitive UX'].map((item, index) => (
-                <li key={index} className="flex items-center">
-                  <span className="text-gold-400 mr-2">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-            <h4 className="text-xl font-bold text-plum-700 mb-4">Key Features</h4>
-            <div className="space-y-4">
-              {['Interactive Dashboards', 'Multi-language Support', 'AI Insights', 'Cross-platform'].map((feature, index) => (
-                <div key={index} className="flex items-center">
-                  <div className="w-8 h-8 bg-gold-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-gold-600">✓</span>
-                  </div>
-                  <span className="text-plum-600">{feature}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-            <h4 className="text-xl font-bold text-plum-700 mb-4">Technology Stack</h4>
-            <div className="grid grid-cols-2 gap-4">
-              {['React', 'Node.js', 'MongoDB', 'Python', 'TensorFlow', 'Docker'].map((tech, index) => (
-                <span key={index} className="bg-gold-100 text-plum-700 px-3 py-1.5 rounded-full text-sm text-center transition-colors duration-300 hover:bg-gold-200">
-                  {tech}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Academic Statement */}
-        <div className="bg-gold-50 p-8 rounded-xl text-center transition-colors duration-300 hover:bg-gold-100">
-          <p className="text-lg italic text-plum-700 mb-4">
-            "This project represents the culmination of four years of study in Computer Science,
-            incorporating modern software engineering practices and cutting-edge technologies
-            learned during our academic journey at SQU."
-          </p>
-          <p className="font-medium text-plum-700">
-            - Project Development Team
+      {/* Mission Statement */}
+      <div className="max-w-4xl text-center mt-16 px-4 animate-fade-in-up">
+        <div className="border-t border-white/20 pt-12">
+          <p className="text-xl text-white/90 italic font-light">
+            "Our mission is to redefine survey experiences through cutting-edge security, 
+            AI-driven analytics, and user-centric design - making data collection both 
+            trustworthy and insightful."
           </p>
         </div>
       </div>
     </div>
   );
-};
-
-
-export default About;
+}

@@ -28,19 +28,17 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { path: 'dashboard', element: <Dashboard /> },
-    
+      { path: 'builder', element: <SurveyBuilder /> },
+      { path: 'builder/:surveyId', element: <SurveyBuilder /> },
       { path: 'preview', element: <SurveyPreview /> },
     
 
+      {path:'SurveyAnalysisPage',element:<SurveyAnalysisPage/>},
      
       { path: 'about', element: <About /> },
       { path: 'contact', element: <Contact /> },
     ],
   },
-  { path: 'builder', element: <SurveyBuilder /> },
-  { path: 'builder/:surveyId', element: <SurveyBuilder /> },
-  {path:'SurveyAnalysisPage',element:<SurveyAnalysisPage/>},
-
   { path: 'view', element: <ViewSurvey /> },
   { path: "view/:surveyId", element: <ViewSurvey /> },
 
