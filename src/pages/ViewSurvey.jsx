@@ -17,7 +17,34 @@ const ViewSurvey = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [frameColor, setFrameColor] = useState('#ffffff');
   const [answerColor, setAnswerColor] = useState('#4f46e5');
-  
+  const [sections, setSections] = useState([]);
+const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+const goToNextSection = (e) => {
+  e?.preventDefault(); // Add this to prevent form submission
+  if (currentSectionIndex < sections.length - 1) {
+    setCurrentSectionIndex(currentSectionIndex + 1);
+  }
+};
+
+const goToPrevSection = (e) => {
+  e?.preventDefault(); // Add this to prevent form submission
+  if (currentSectionIndex > 0) {
+    setCurrentSectionIndex(currentSectionIndex - 1);
+  }
+};
+const isLastSection = currentSectionIndex === sections.length - 1;
+
+const fetchSections = async () => {
+  const { data, error } = await supabase
+    .from("sections")
+    .select("*")
+    .eq("survey_id", surveyId)
+    .order("order", { ascending: true });
+
+  if (error) throw error;
+  return data;
+};
+
 
   useEffect(() => {
     if (surveyId) fetchSurveyData();
@@ -35,10 +62,16 @@ const ViewSurvey = () => {
   const fetchSurveyData = async () => {
     try {
       setLoading(true);
-      const [surveyData, questionsData] = await Promise.all([
-        fetchSurvey(),
-        fetchQuestions(),
-      ]);
+     const [surveyData, questionsData, sectionData] = await Promise.all([
+  fetchSurvey(),
+  fetchQuestions(),
+  fetchSections(),
+]);
+
+setSurvey(surveyData);
+setQuestions(questionsData);
+setSections(sectionData); 
+
 
       if (responseId) await fetchResponse(surveyData, questionsData);
       else setAnswers(initializeEmptyAnswers(questionsData));
@@ -249,6 +282,7 @@ const ViewSurvey = () => {
   if (loading) return <LoadingIndicator />;
   if (!survey) return <NotFound message="Survey not found." />;
   if (submitted) return <SubmissionSuccess isEditing={isEditing} />;
+  
 
   return (
     <div className="min-h-screen py-8" style={{ backgroundColor: frameColor }}>
@@ -263,20 +297,38 @@ const ViewSurvey = () => {
           <Header survey={survey} isEditing={isEditing} navigate={navigate} answerColor={answerColor} />
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {questions.map(q => (
-              <div key={q.id} className="space-y-3">
-                <QuestionLabel q={q} answerColor={answerColor} />
-                {renderQuestionInput(q)}
-                {errors[q.id] && <ErrorDisplay message={errors[q.id]} />}
-              </div>
-            ))}
+         {sections.length > 0 && (
+  <div key={sections[currentSectionIndex].id} className="mb-10">
+    <h2 className="text-xl font-bold mb-2" style={{ color: answerColor }}>
+      {sections[currentSectionIndex].title}
+    </h2>
+    {sections[currentSectionIndex].description && (
+      <p className="text-gray-700 mb-4">{sections[currentSectionIndex].description}</p>
+    )}
 
-            <FormControls
-              isEditing={isEditing}
-              isSubmitting={isSubmitting}
-              navigate={navigate}
-              answerColor={answerColor}
-            />
+    {questions
+      .filter(q => q.section_id === sections[currentSectionIndex].id)
+      .map(q => (
+        <div key={q.id} className="space-y-3 mb-6">
+          <QuestionLabel q={q} answerColor={answerColor} />
+          {renderQuestionInput(q)}
+          {errors[q.id] && <ErrorDisplay message={errors[q.id]} />}
+        </div>
+      ))}
+  </div>
+)}
+
+<FormControls
+  isEditing={isEditing}
+  isSubmitting={isSubmitting}
+  navigate={navigate}
+  answerColor={answerColor}
+  currentSectionIndex={currentSectionIndex}
+  isLastSection={isLastSection}
+  goToNextSection={goToNextSection}
+  goToPrevSection={goToPrevSection}
+/>
+
           </form>
         </div>
       </div>
@@ -558,38 +610,53 @@ const RatingInput = ({ value, onChange, answerColor }) => (
   />
 );
 
-const FormControls = ({ isEditing, isSubmitting, navigate, answerColor }) => (
-  <div className="mt-8 flex gap-4">
-    <button
-      type="submit"
-      disabled={isSubmitting}
-      className="flex-1 py-3 px-6 rounded-lg transition-colors disabled:opacity-50"
-      style={{
-        backgroundColor: answerColor,
-        color: '#ffffff',
-        hoverBg: `${answerColor}dd`
-      }}
-    >
-      {isEditing ? (
-        <div className="flex items-center justify-center gap-2">
-          <PencilSquareIcon className="h-5 w-5" />
-          {isSubmitting ? "Updating..." : "Update Response"}
-        </div>
-      ) : (
-        isSubmitting ? "Submitting..." : "Submit Response"
-      )}
-    </button>
-    
-    {isEditing && (
+const FormControls = ({
+  isEditing,
+  isSubmitting,
+  navigate,
+  answerColor,
+  currentSectionIndex,
+  isLastSection,
+  goToNextSection,
+  goToPrevSection
+}) => (
+  <div className="flex justify-between items-center gap-4 mt-6">
+    {/* Previous Section Button */}
+    {currentSectionIndex > 0 && (
       <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors"
+        type="button" // ✅ Prevent form submission
+        onClick={goToPrevSection}
+        className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
       >
-        Cancel
+        Previous Section
+      </button>
+    )}
+
+    {/* Next or Submit Button */}
+    {!isLastSection ? (
+      <button
+        type="button" // ✅ Prevent form submission
+        onClick={goToNextSection}
+        className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+      >
+        Next Section
+      </button>
+    ) : (
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="ml-auto px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition disabled:opacity-60"
+      >
+        {isEditing
+          ? (isSubmitting ? "Updating..." : "Update Response")
+          : (isSubmitting ? "Submitting..." : "Submit Response")}
       </button>
     )}
   </div>
 );
+
+
+
+
 
 export default ViewSurvey;

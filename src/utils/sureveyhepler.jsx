@@ -1,100 +1,87 @@
-import { useSurveyContext } from "../context/SurveyContext";
-import { supabase } from "../assets/createClient";
+import { useSurveyContext } from "../context/surveycontexts"; // Adjusted path
+import { supabase } from "../assets/createClient"; // Adjusted path
+import { encrypt } from "../service/cryptoHelper"; // Adjusted path
 
-// Custom hook to access context safely
 export const useSurveyHelper = () => {
   const {
     surveyDBId,
     setSurveyDBId,
     title,
-    setTitle,
     description,
-    setDescription,
-    questions,
+    questions, // Expect questions to have section_id if applicable
     setQuestions,
     frameColor,
-    answerColor
+    answerColor,
+    sections, // Assuming sections are managed in context for UI purposes
+    setSections // Assuming sections are managed in context for UI purposes
   } = useSurveyContext();
 
+  const addQuestion = (sectionId) => { // Pass sectionId to associate question
+    setQuestions([
+      ...questions,
+      {
+        text: "",
+        type: "shortAnswer",
+        options: [],
+        required: false,
+        rows: [],
+        columns: [],
+        section_id: sectionId // Store section_id with the question
+      },
+    ]);
+  };
 
-  // Function to add a new question
-const addQuestion = () => {
-  setQuestions([
-    ...questions,
-    { 
-      text: "", 
-      type: "shortAnswer", 
-      options: [], 
-      required: false,
-      rows: [], 
-      columns: [] 
-    },
-  ]);
-};
-
-  // Function to update question text
   const updateQuestionText = (index, value) => {
     const updated = [...questions];
     updated[index].text = value;
     setQuestions(updated);
   };
 
-  // Function to update question type
   const updateQuestionType = (index, value) => {
     const updated = [...questions];
     updated[index].type = value;
-    
-    // Original options reset logic
     updated[index].options = ["multipleChoice", "checkboxes", "dropdown"].includes(value)
       ? [""]
       : [];
-  
-    // New grid type handling
     if (["multipleChoiceGrid", "checkboxGrid"].includes(value)) {
-      updated[index].rows = [];  // Initialize empty rows array
-      updated[index].columns = [];  // Initialize empty columns array
+      updated[index].rows = [];
+      updated[index].columns = [];
     } else {
-      updated[index].rows = undefined;  // Clear rows for non-grid types
-      updated[index].columns = undefined;  // Clear columns for non-grid types
+      updated[index].rows = undefined;
+      updated[index].columns = undefined;
     }
-  
     setQuestions(updated);
   };
-  // Function to toggle the required field of a question
+
   const toggleRequired = (index) => {
     const updated = [...questions];
     updated[index].required = !updated[index].required;
     setQuestions(updated);
   };
 
-  // Function to update an option of a question
   const updateOption = (qIndex, oIndex, value) => {
     const updated = [...questions];
     updated[qIndex].options[oIndex] = value;
     setQuestions(updated);
   };
 
-  // Function to add an option to a question
   const addOption = (qIndex) => {
     const updated = [...questions];
     updated[qIndex].options.push("");
     setQuestions(updated);
   };
 
-  // Function to remove an option from a question
   const removeOption = (qIndex, oIndex) => {
     const updated = [...questions];
     updated[qIndex].options.splice(oIndex, 1);
     setQuestions(updated);
   };
 
-  // Function to remove a question
   const removeQuestion = (qIndex) => {
     const updated = questions.filter((_, idx) => idx !== qIndex);
     setQuestions(updated);
   };
 
-  // Function to update grid rows
   const addRow = (qIndex) => {
     const updated = [...questions];
     updated[qIndex].rows.push("");
@@ -130,89 +117,188 @@ const addQuestion = () => {
     updated[qIndex].columns.splice(cIndex, 1);
     setQuestions(updated);
   };
+
+  // Function to handle saving/updating sections
+  const handleSaveSections = async (surveyId, sectionsToSave) => {
+  const savedSections = [];
   
-  const handleSaveSurvey = async () => {
+  // First, delete any sections that were removed in the UI
+  const { data: existingSections } = await supabase
+    .from('sections')
+    .select('id')
+    .eq('survey_id', surveyId);
+    
+  const existingSectionIds = existingSections?.map(s => s.id) || [];
+  const currentSectionIds = sectionsToSave
+    .filter(s => !s.id?.startsWith('temp-'))
+    .map(s => s.id);
+    
+  const sectionsToDelete = existingSectionIds.filter(id => !currentSectionIds.includes(id));
+  
+  if (sectionsToDelete.length > 0) {
+    await supabase
+      .from('sections')
+      .delete()
+      .in('id', sectionsToDelete);
+  }
+
+  // Then process each section
+  for (const section of sectionsToSave) {
+    const sectionData = {
+      survey_id: surveyId,
+      title: (section.title),
+      description: (section.description || ''),
+      order: section.order
+    };
+    
     try {
-      
-      let finalSurveyId = surveyDBId;
-  
-      // 1. Handle Survey Creation/Update
-      if (!finalSurveyId) {
-        const { data: newSurvey, error: surveyError } = await supabase
-          .from("surveys")
-          .insert({ 
-            title, 
-            description,
-            frame_color: frameColor, // Add if you have color settings
-            answer_color: answerColor
-          })
+      if (section.id && !section.id.startsWith('temp-')) { 
+        // Update existing section
+        const { data, error } = await supabase
+          .from('sections')
+          .update(sectionData)
+          .eq('id', section.id)
           .select()
           .single();
-  
-        if (surveyError) throw surveyError;
-        finalSurveyId = newSurvey.id;
-        setSurveyDBId(newSurvey.id);
-      } else {
-        const { error: updateError } = await supabase
-          .from("surveys")
-          .update({ 
-            title, 
-            description,
-            frame_color: frameColor,
-            answer_color: answerColor
-          })
-          .eq("id", finalSurveyId);
-  
-        if (updateError) throw updateError;
+        if (error) throw error;
+        savedSections.push(data);
+      } else { 
+        // Create new section
+        const { data, error } = await supabase
+          .from('sections')
+          .insert(sectionData)
+          .select()
+          .single();
+        if (error) throw error;
+        savedSections.push(data);
       }
+    } catch (error) {
+      console.error('Error saving section:', error);
+      throw error;
+    }
+  }
   
-      // 2. Handle Questions with Proper ID Management
-      const updatedQuestions = await Promise.all(
-        questions.map(async (q) => {
-          const questionData = {
-            survey_id: finalSurveyId,
-            question_text: q.text,
-            question_type: q.type,
-            is_required: q.required,
-            options: JSON.stringify(q.options || []),
-            rows: JSON.stringify(q.rows || []),
-            columns: JSON.stringify(q.columns || [])
-          };
-  
-          // Update existing question
-          if (q.id) {
-            const { error } = await supabase
-              .from("questions")
-              .update(questionData)
-              .eq("id", q.id);
-  
-            if (error) throw error;
-            return q;
-          }
-  
-          // Create new question and get ID
+  return savedSections;
+};
+  const handleSaveSurvey = async () => {
+  try {
+    let finalSurveyId = surveyDBId;
+
+    // 1. Handle Survey Creation/Update
+    if (!finalSurveyId) {
+      const { data: newSurvey, error: surveyError } = await supabase
+        .from('surveys')
+        .insert({ 
+          title: (title),
+          description: (description || ''),
+          frame_color: frameColor,
+          answer_color: answerColor
+        })
+        .select()
+        .single();
+
+      if (surveyError) throw surveyError;
+      finalSurveyId = newSurvey.id;
+      setSurveyDBId(newSurvey.id);
+    } else {
+      const { error: updateError } = await supabase
+        .from('surveys')
+        .update({ 
+          title: (title),
+          description: (description || ''),
+          frame_color: frameColor,
+          answer_color: answerColor
+        })
+        .eq('id', finalSurveyId);
+
+      if (updateError) throw updateError;
+    }
+
+    // 2. Handle Sections Save/Update
+    const savedSections = await handleSaveSections(finalSurveyId, sections);
+    
+    // Create a mapping from temporary IDs to database IDs
+    const sectionIdMap = {};
+    sections.forEach(section => {
+      const savedSection = savedSections.find(s => 
+        (section.id && !section.id.startsWith('temp-') && s.id === section.id) || 
+        (section.title === s.title && section.order === s.order)
+      );
+      if (savedSection) {
+        sectionIdMap[section.id] = savedSection.id;
+      }
+    });
+
+    // 3. Handle Questions
+    const questionsToSave = questions.map(q => ({
+      ...q,
+      section_id: sectionIdMap[q.section_id] || q.section_id
+    }));
+
+    // Delete questions that were removed
+    const { data: existingQuestions } = await supabase
+      .from('questions')
+      .select('id')
+      .eq('survey_id', finalSurveyId);
+      
+    const existingQuestionIds = existingQuestions?.map(q => q.id) || [];
+    const currentQuestionIds = questionsToSave
+      .filter(q => q.id && !q.id.startsWith('temp-'))
+      .map(q => q.id);
+      
+    const questionsToDelete = existingQuestionIds.filter(id => !currentQuestionIds.includes(id));
+    
+    if (questionsToDelete.length > 0) {
+      await supabase
+        .from('questions')
+        .delete()
+        .in('id', questionsToDelete);
+    }
+
+    // Save/update questions
+    const updatedQuestions = await Promise.all(
+      questionsToSave.map(async (q) => {
+        const questionData = {
+          survey_id: finalSurveyId,
+          question_text: (q.text),
+          question_type: q.type,
+          is_required: q.required,
+          options: q.options ? JSON.stringify(q.options) : null,
+          rows: q.rows ? JSON.stringify(q.rows) : null,
+          columns: q.columns ? JSON.stringify(q.columns) : null,
+          section_id: q.section_id?.startsWith('temp-') ? null : q.section_id
+        };
+
+        if (q.id && !q.id.startsWith('temp-')) {
+          await supabase
+            .from('questions')
+            .update(questionData)
+            .eq('id', q.id);
+          return { ...q };
+        } else {
           const { data: newQuestion, error } = await supabase
-            .from("questions")
+            .from('questions')
             .insert(questionData)
             .select()
             .single();
-  
           if (error) throw error;
-          return { ...q, id: newQuestion.id }; // Critical: Store new ID
-        })
-      );
-  
-      // 3. Update Local State with New IDs
-      setQuestions(updatedQuestions);
-  
-      alert("Survey saved successfully!");
-    } catch (err) {
-      console.error("Save error:", err);
-      alert(`Error saving survey: ${err.message}`);
-    }
-  };
-  
+          return { ...q, id: newQuestion.id };
+        }
+      })
+    );
 
+    // 4. Update Local State
+    setQuestions(updatedQuestions);
+    setSections(savedSections);
+
+    alert('Survey saved successfully!');
+    return true;
+  } catch (err) {
+    console.error('Save error:', err);
+    alert(`Error saving survey: ${err.message}`);
+    return false;
+  }
+};
   
   return {
     addQuestion,
@@ -229,7 +315,8 @@ const addQuestion = () => {
     removeRow,
     addColumn,
     updateColumn,
-    removeColumn
-
+    removeColumn,
+    handleSaveSections // Expose if sections are saved independently or for more granular control
   };
 };
+
