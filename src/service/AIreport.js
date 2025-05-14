@@ -1,15 +1,15 @@
 /**
- * AIreport.js - تحليل متقدم للاستبانات باستخدام الذكاء الاصطناعي
+ * AIreport.js - Advanced Survey Analysis with AI
  * 
- * هذا الملف يوفر وظائف متقدمة لتحليل بيانات الاستبانات وإنشاء تقارير ذكية
- * باستخدام الإحصاءات والذكاء الاصطناعي
+ * This module provides advanced functions for analyzing survey data and generating
+ * intelligent reports using statistical methods and artificial intelligence.
  */
 
 import { AIChatSession } from "./AIAnalysis";
 import { linearRegressionLine, linearRegression, sampleCorrelation } from "simple-statistics";
 import { calculateSummaryStatistics } from "../utils/statisticalFunctions";
 
-// ثوابت التكوين - يمكن نقلها إلى ملف تكوين منفصل
+// Configuration constants - could be moved to separate config file
 const ANALYSIS_CONFIG = {
   MIN_RESPONSES: 10,
   MIN_CATEGORIES: 2,
@@ -18,7 +18,7 @@ const ANALYSIS_CONFIG = {
     STRONG: 0.7,
     MODERATE: 0.3
   },
-  CHI_SQUARE_SIGNIFICANCE: 3.84, // القيمة الحرجة عند p=0.05, df=1
+  CHI_SQUARE_SIGNIFICANCE: 3.84, // Critical value at p=0.05, df=1
   QUALITY_SCORE_WEIGHTS: {
     RESPONSE_COUNT: 0.5,
     DATA_VALIDITY: 0.3,
@@ -27,27 +27,27 @@ const ANALYSIS_CONFIG = {
 };
 
 /**
- * التحقق من صحة بيانات السؤال وتقييم جودتها
+ * Validate question data and assess quality
  * 
- * @param {Object} question - كائن السؤال
- * @param {Array} answers - مصفوفة الإجابات
- * @returns {Object} - نتائج التحقق من الصحة
+ * @param {Object} question - Question object
+ * @param {Array} answers - Array of answers
+ * @returns {Object} Validation results
  */
 const validateQuestionData = (question, answers) => {
   if (!question || !question.id || !Array.isArray(answers)) {
     return {
       isValid: false,
       qualityScore: 0,
-      errors: ["بيانات السؤال أو الإجابات غير صالحة"],
+      errors: ["Invalid question or answer data"],
       filteredAnswers: [],
       numericalValues: []
     };
   }
 
-  // تصفية الإجابات المتعلقة بهذا السؤال
+  // Filter answers for this question
   const filteredAnswers = answers.filter(a => a && a.question_id === question.id);
   
-  // استخراج القيم العددية الصالحة
+  // Extract valid numerical values
   const numericalValues = filteredAnswers
     .map(a => {
       const num = Number(a.answer_value);
@@ -58,21 +58,21 @@ const validateQuestionData = (question, answers) => {
   const errors = [];
   let qualityScore = 1;
 
-  // التحقق من عدد الاستجابات
+  // Check response count
   if (filteredAnswers.length < ANALYSIS_CONFIG.MIN_RESPONSES) {
-    errors.push(`عدد الاستجابات غير كافٍ (${filteredAnswers.length}/${ANALYSIS_CONFIG.MIN_RESPONSES})`);
+    errors.push(`Insufficient responses (${filteredAnswers.length}/${ANALYSIS_CONFIG.MIN_RESPONSES})`);
     qualityScore *= ANALYSIS_CONFIG.QUALITY_SCORE_WEIGHTS.RESPONSE_COUNT;
   }
 
-  // التحقق من صحة البيانات العددية
+  // Check numerical data validity
   if (numericalValues.length === 0) {
-    errors.push("لا توجد بيانات عددية صالحة");
+    errors.push("No valid numerical data");
     qualityScore *= ANALYSIS_CONFIG.QUALITY_SCORE_WEIGHTS.DATA_VALIDITY;
   } else {
-    // التحقق من التباين الصفري
+    // Check for zero variance
     const uniqueValues = new Set(numericalValues);
     if (uniqueValues.size === 1) {
-      errors.push("تم اكتشاف قيم ثابتة (تباين صفري)");
+      errors.push("Constant values detected (zero variance)");
       qualityScore *= ANALYSIS_CONFIG.QUALITY_SCORE_WEIGHTS.VARIANCE;
     }
   }
@@ -87,11 +87,11 @@ const validateQuestionData = (question, answers) => {
 };
 
 /**
- * حساب معامل التحديد (R²) للانحدار الخطي
+ * Calculate R-squared value for linear regression
  * 
- * @param {Array} dataPoints - نقاط البيانات [[x1,y1], [x2,y2], ...]
- * @param {Function} predictFn - دالة التنبؤ
- * @returns {number} - قيمة R²
+ * @param {Array} dataPoints - Array of data points [[x1,y1], [x2,y2], ...]
+ * @param {Function} predictFn - Prediction function
+ * @returns {number} R-squared value
  */
 const calculateRSquared = (dataPoints, predictFn) => {
   try {
@@ -106,24 +106,24 @@ const calculateRSquared = (dataPoints, predictFn) => {
     
     return 1 - (ssResidual / ssTotal);
   } catch (error) {
-    console.error("خطأ في حساب R²:", error);
+    console.error("Error calculating R²:", error);
     return 0;
   }
 };
 
 /**
- * إجراء اختبار مربع كاي للاستقلالية
+ * Perform chi-square test for independence
  * 
- * @param {Object} question - كائن السؤال
- * @param {Array} answers - مصفوفة الإجابات
- * @returns {Object} - نتائج الاختبار
+ * @param {Object} question - Question object
+ * @param {Array} answers - Array of answers
+ * @returns {Object} Test results
  */
 const performChiSquareTest = (question, answers) => {
   try {
     const validation = validateQuestionData(question, answers);
     if (!validation.isValid) return { error: validation.errors };
 
-    // حساب التكرارات المرصودة
+    // Calculate observed frequencies
     const observedFrequencies = validation.filteredAnswers.reduce((acc, { answer_value }) => {
       acc[answer_value] = (acc[answer_value] || 0) + 1;
       return acc;
@@ -131,14 +131,14 @@ const performChiSquareTest = (question, answers) => {
 
     const observed = Object.values(observedFrequencies);
     if (observed.length < ANALYSIS_CONFIG.MIN_CATEGORIES) {
-      return { error: ["عدد فئات الاستجابة غير كافٍ"] };
+      return { error: ["Insufficient response categories"] };
     }
 
-    // حساب التكرارات المتوقعة بافتراض التوزيع المنتظم
+    // Calculate expected frequencies (uniform distribution)
     const total = observed.reduce((sum, val) => sum + val, 0);
     const expected = Array(observed.length).fill(total / observed.length);
 
-    // حساب قيمة مربع كاي
+    // Calculate chi-square value
     const chiSquareValue = observed.reduce((sum, obs, i) => sum + ((obs - expected[i]) ** 2) / expected[i], 0);
     const degreesOfFreedom = observed.length - 1;
     
@@ -149,17 +149,17 @@ const performChiSquareTest = (question, answers) => {
       observedFrequencies
     };
   } catch (error) {
-    console.error("خطأ في اختبار مربع كاي:", error);
-    return { error: ["فشل في الحساب الإحصائي"] };
+    console.error("Chi-square test error:", error);
+    return { error: ["Statistical calculation failed"] };
   }
 };
 
 /**
- * إجراء تحليل الانحدار الخطي
+ * Perform linear regression analysis
  * 
- * @param {Object} question - كائن السؤال
- * @param {Array} answers - مصفوفة الإجابات
- * @returns {Object} - نتائج الانحدار
+ * @param {Object} question - Question object
+ * @param {Array} answers - Array of answers
+ * @returns {Object} Regression results
  */
 const performLinearRegression = (question, answers) => {
   try {
@@ -167,10 +167,10 @@ const performLinearRegression = (question, answers) => {
     if (!validation.isValid) return { error: validation.errors };
 
     if (validation.numericalValues.length < ANALYSIS_CONFIG.MIN_DATA_POINTS) {
-      return { error: ["عدد نقاط البيانات غير كافٍ للانحدار"] };
+      return { error: ["Insufficient data points for regression"] };
     }
 
-    // إنشاء نقاط البيانات للانحدار
+    // Create regression data points
     const dataPoints = validation.filteredAnswers.map((a, index) => [index + 1, Number(a.answer_value)]);
     const regression = linearRegression(dataPoints);
     const predict = linearRegressionLine(regression);
@@ -185,17 +185,17 @@ const performLinearRegression = (question, answers) => {
       predict
     };
   } catch (error) {
-    console.error("خطأ في تحليل الانحدار:", error);
-    return { error: ["فشل في تحليل الانحدار"] };
+    console.error("Regression analysis error:", error);
+    return { error: ["Regression analysis failed"] };
   }
 };
 
 /**
- * إجراء تحليل الارتباط
+ * Perform correlation analysis
  * 
- * @param {Object} question - كائن السؤال
- * @param {Array} answers - مصفوفة الإجابات
- * @returns {Object} - نتائج الارتباط
+ * @param {Object} question - Question object
+ * @param {Array} answers - Array of answers
+ * @returns {Object} Correlation results
  */
 const performCorrelation = (question, answers) => {
   try {
@@ -203,57 +203,57 @@ const performCorrelation = (question, answers) => {
     if (!validation.isValid) return { error: validation.errors };
 
     if (validation.numericalValues.length < ANALYSIS_CONFIG.MIN_DATA_POINTS) {
-      return { error: ["عدد نقاط البيانات غير كافٍ للارتباط"] };
+      return { error: ["Insufficient data points for correlation"] };
     }
 
-    // حساب معامل الارتباط
+    // Calculate correlation coefficient
     const x = validation.filteredAnswers.map((_, i) => i + 1);
     const y = validation.numericalValues;
     const correlationValue = sampleCorrelation(x, y);
 
-    // تحديد قوة واتجاه الارتباط
-    let strength = "ضعيف";
+    // Determine correlation strength
+    let strength = "Weak";
     if (Math.abs(correlationValue) > ANALYSIS_CONFIG.CORRELATION_THRESHOLDS.STRONG) {
-      strength = "قوي";
+      strength = "Strong";
     } else if (Math.abs(correlationValue) > ANALYSIS_CONFIG.CORRELATION_THRESHOLDS.MODERATE) {
-      strength = "متوسط";
+      strength = "Moderate";
     }
 
     return {
       correlationValue,
       strength,
-      interpretation: correlationValue > 0 ? "إيجابي" : "سلبي",
+      interpretation: correlationValue > 0 ? "Positive" : "Negative",
       dataPoints: x.map((xVal, i) => [xVal, y[i]])
     };
   } catch (error) {
-    console.error("خطأ في تحليل الارتباط:", error);
-    return { error: ["فشل في تحليل الارتباط"] };
+    console.error("Correlation analysis error:", error);
+    return { error: ["Correlation analysis failed"] };
   }
 };
 
 /**
- * إنشاء تقرير ذكاء اصطناعي متقدم
+ * Generate advanced AI analysis report
  * 
- * @param {Array} questions - مصفوفة الأسئلة
- * @param {Array} answers - مصفوفة الإجابات
- * @param {Function} setState - دالة لتحديث حالة المكون
- * @returns {Promise<Object>} - وعد بتقرير الذكاء الاصطناعي
+ * @param {Array} questions - Array of questions
+ * @param {Array} answers - Array of answers
+ * @param {Function} setState - State update function
+ * @returns {Promise<Object>} AI analysis report
  */
 export const generateAdvancedAIReport = async (questions, answers, setState) => {
   try {
-    console.log("🟢 جاري إنشاء تقرير الذكاء الاصطناعي...");
+    console.log("🟢 Generating AI report...");
 
-    // التحقق من صحة البيانات المدخلة
+    // Validate input data
     if (!Array.isArray(questions) || !Array.isArray(answers)) {
-      console.error("❌ بيانات مدخلة غير صالحة:", { questions, answers });
-      throw new Error("بيانات مدخلة غير صالحة");
+      console.error("❌ Invalid input data:", { questions, answers });
+      throw new Error("Invalid input data");
     }
 
-    // تحليل كل سؤال
+    // Analyze each question
     const analysisResults = questions.map((question, index) => {
       const validation = validateQuestionData(question, answers);
       
-      // إجراء التحليلات فقط إذا كانت البيانات صالحة
+      // Perform analyses if data is valid
       const analyses = validation.isValid ? {
         chiSquare: performChiSquareTest(question, answers),
         regression: performLinearRegression(question, answers),
@@ -269,88 +269,88 @@ export const generateAdvancedAIReport = async (questions, answers, setState) => 
       };
     });
 
-    // تصفية النتائج الصالحة
+    // Filter valid results
     const validResults = analysisResults.filter(r => r.validation.isValid);
 
     if (validResults.length === 0) {
-      console.warn("⚠️ لم يتم العثور على أسئلة صالحة. قد يكون تقرير الذكاء الاصطناعي فارغًا.");
+      console.warn("⚠️ No valid questions found. AI report may be empty.");
     }
 
-    // إنشاء محتوى تقرير الذكاء الاصطناعي
+    // Create report content
     const promptSections = analysisResults.map((result, index) => {
       if (!result.validation.isValid) {
-        return `❌ **السؤال ${index + 1}:** ${result.questionText}\n**المشكلات:** ${result.validation.errors.join(", ")}\n**درجة الجودة:** ${result.validation.qualityScore}%`;
+        return `❌ **Question ${index + 1}:** ${result.questionText}\n**Issues:** ${result.validation.errors.join(", ")}\n**Quality Score:** ${result.validation.qualityScore}%`;
       }
 
-      return `✅ **السؤال ${index + 1}:** ${result.questionText}\n- **الاستجابات:** ${result.validation.filteredAnswers.length}\n- **المتوسط:** ${result.analyses.summaryStats.mean?.toFixed(2) || 'غير متاح'}\n- **الارتباط:** ${result.analyses.correlation?.correlationValue?.toFixed(2) || 'غير متاح'} (${result.analyses.correlation?.strength || 'غير متاح'})\n- **الدلالة الإحصائية:** ${result.analyses.chiSquare?.significant ? 'نعم' : 'لا'}\n- **درجة الجودة:** ${result.validation.qualityScore}%`;
+      return `✅ **Question ${index + 1}:** ${result.questionText}\n- **Responses:** ${result.validation.filteredAnswers.length}\n- **Mean:** ${result.analyses.summaryStats.mean?.toFixed(2) || 'N/A'}\n- **Correlation:** ${result.analyses.correlation?.correlationValue?.toFixed(2) || 'N/A'} (${result.analyses.correlation?.strength || 'N/A'})\n- **Statistical Significance:** ${result.analyses.chiSquare?.significant ? 'Yes' : 'No'}\n- **Quality Score:** ${result.validation.qualityScore}%`;
     }).join("\n\n");
 
-    // إنشاء النص الكامل للتقرير
+    // Construct full report prompt
     const fullPrompt = `
-## **تقرير تحليل الاستبانة**  
+## **Survey Analysis Report**  
 
-### 📖 **مقدمة**  
-يقدم هذا التقرير تحليلاً متعمقاً لاستجابات الاستبانة، مع تسليط الضوء على الأنماط والرؤى الرئيسية والتوصيات القابلة للتنفيذ.  
-
----
-
-### 📌 **ملخص تنفيذي**  
-1. **جودة مجموعة البيانات:** ${validResults.length}/${questions.length} أسئلة صالحة  
-2. **الاتجاهات والأنماط الرئيسية المحددة:**  
-   - تحسين اتساق البيانات  
-   - ارتباط قوي بين متغيرات معينة  
-   - الحاجة إلى فئات استجابة أكثر تنوعاً  
+### 📖 **Introduction**  
+This report provides an in-depth analysis of survey responses, highlighting key patterns, insights, and actionable recommendations.  
 
 ---
 
-### 📊 **النتائج الرئيسية**  
+### 📌 **Executive Summary**  
+1. **Dataset Quality:** ${validResults.length}/${questions.length} valid questions  
+2. **Key Identified Patterns:**  
+   - Data consistency improvements  
+   - Strong correlations between specific variables  
+   - Need for more diverse response categories  
+
+---
+
+### 📊 **Key Findings**  
 ${promptSections}
 
 ---
 
-### 📈 **الرؤى الإحصائية**  
-- **اختبار مربع كاي:** قياس الدلالة الإحصائية للبيانات الفئوية.  
-- **تحليل الانحدار:** تحديد الأنماط والعلاقات في الاستجابات العددية.  
-- **الارتباط:** قياس قوة واتجاه العلاقات بين المتغيرات.  
+### 📈 **Statistical Insights**  
+- **Chi-Square Test:** Measuring significance of categorical data  
+- **Regression Analysis:** Identifying patterns in numerical responses  
+- **Correlation Analysis:** Measuring relationship strength between variables  
 
 ---
 
-### 📢 **التوصيات**  
-1. تحسين هيكل الاستبانة لتحقيق اتساق أفضل للبيانات.  
-2. تحسين وضوح الأسئلة لتقليل التناقضات.  
-3. مزيد من تحليل الاتجاهات باستخدام النمذجة التنبؤية.  
+### 📢 **Recommendations**  
+1. Improve survey structure for better data consistency  
+2. Enhance question clarity to reduce ambiguity  
+3. Further analyze trends using predictive modeling  
 
 ---
 
-### 🔎 **الخلاصة**  
-يلخص هذا التقرير النتائج الرئيسية ويقدم رؤى لاتخاذ القرارات المستقبلية. تهدف التوصيات المقدمة إلى تحسين جودة واتساق جهود جمع البيانات المستقبلية.  
+### 🔎 **Conclusion**  
+This report summarizes key findings and provides insights for future decision-making. Recommendations aim to improve future data collection quality and consistency.  
 
 ---
 
 `;
 
-    // إرسال الطلب إلى خدمة الذكاء الاصطناعي
+    // Send request to AI service
     const aiResponse = await AIChatSession.sendMessage(fullPrompt);
-    let responseText = "⚠️ استجابة الذكاء الاصطناعي فارغة.";
+    let responseText = "⚠️ Empty AI response.";
 
-    // معالجة استجابة الذكاء الاصطناعي
+    // Process AI response
     if (aiResponse?.response) {
       try {
         responseText = typeof aiResponse.response.text === "function"
           ? aiResponse.response.text()
-          : aiResponse.response.text || "⚠️ خدمة الذكاء الاصطناعي أرجعت استجابة فارغة.";
+          : aiResponse.response.text || "⚠️ AI service returned empty response.";
       } catch (error) {
-        console.error("❌ فشل في استخراج نص استجابة الذكاء الاصطناعي:", error);
+        console.error("❌ Failed to extract AI response text:", error);
       }
     } else {
-      console.error("❌ خدمة الذكاء الاصطناعي أرجعت استجابة غير صالحة:", aiResponse);
+      console.error("❌ AI service returned invalid response:", aiResponse);
     }
 
-    // تحديث الحالة بتقرير الذكاء الاصطناعي
+    // Update state with AI report
     if (setState && typeof setState === 'function') {
       setState(prev => ({
         ...prev,
-        aiReport: responseText.trim() || "⚠️ لا يوجد تقرير ذكاء اصطناعي متاح.",
+        aiReport: responseText.trim() || "⚠️ No AI report available.",
         analysisResults: analysisResults,
         lastUpdated: new Date().toISOString()
       }));
@@ -364,19 +364,19 @@ ${promptSections}
     };
 
   } catch (error) {
-    console.error("❌ فشل إنشاء التقرير:", error.message);
+    console.error("❌ Report generation failed:", error.message);
 
-    // تحديث الحالة برسالة الخطأ
+    // Update state with error
     if (setState && typeof setState === 'function') {
       setState(prev => ({
         ...prev,
-        aiReport: `⚠️ التحليل غير متاح: ${error.message}`,
+        aiReport: `⚠️ Analysis unavailable: ${error.message}`,
         error: error.message
       }));
     }
 
     return {
-      aiReport: `⚠️ التحليل غير متاح: ${error.message}`,
+      aiReport: `⚠️ Analysis unavailable: ${error.message}`,
       error: error.message
     };
   }
