@@ -265,7 +265,7 @@ const SurveyBuilder = () => {
             <div className="mb-6">
               <label htmlFor="activeSectionSelect" className="block text-md font-medium text-gray-800 mb-1">Current Section:</label>
               <select id="activeSectionSelect" value={activeSectionId || ""} onChange={(e) => setActiveSectionId(e.target.value)} className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow">
-                {sections.map(s => <option key={s.id} value={s.id}>{decrypt(s.title )|| "Untitled Section"}</option>)}
+                {sections.map(s => <option key={s.id} value={s.id}>{s.title || "Untitled Section"}</option>)}
               </select>
             </div>
             {activeSectionId && questions.filter(q => q.section_id === activeSectionId).map((q, qIndexInSection) => {
