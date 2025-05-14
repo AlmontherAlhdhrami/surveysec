@@ -189,7 +189,7 @@ export const useSurveyHelper = () => {
       const { data: newSurvey, error: surveyError } = await supabase
         .from('surveys')
         .insert({ 
-          title: (title),
+          title: encrypt(title),
           description: (description || ''),
           frame_color: frameColor,
           answer_color: answerColor

@@ -195,7 +195,7 @@ const Dashboard = () => {
                 </div>
                 
                 <h3 className="text-lg font-semibold text-white truncate mb-2">
-                  {survey.title}
+                  {decrypt(survey.title)}
                 </h3>
                 <p className="text-sm text-white mb-auto">
                   Created: {new Date(survey.created_at).toLocaleDateString()}
